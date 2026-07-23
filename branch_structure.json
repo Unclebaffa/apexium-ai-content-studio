@@ -1,0 +1,33 @@
+{
+  "default_branch": "main",
+  "branches": [
+    "Macnate01-patch-1",
+    "feature/adedoyin-automation",
+    "feature/ai-integration",
+    "feature/ai-integration-v2",
+    "feature/ai-integration-v3",
+    "fix/vercel-deployment-errors",
+    "main",
+    "origin"
+  ],
+  "parent": {
+    "Macnate01-patch-1": "main",
+    "feature/adedoyin-automation": "main",
+    "feature/ai-integration": "main",
+    "feature/ai-integration-v2": "feature/ai-integration",
+    "feature/ai-integration-v3": "feature/ai-integration",
+    "fix/vercel-deployment-errors": "main",
+    "main": null,
+    "origin": "main"
+  },
+  "order": [
+    "main",
+    "Macnate01-patch-1",
+    "feature/adedoyin-automation",
+    "feature/ai-integration",
+    "fix/vercel-deployment-errors",
+    "origin",
+    "feature/ai-integration-v2",
+    "feature/ai-integration-v3"
+  ]
+}

@@ -1,27 +1,14 @@
 {
-  "name": "apexium-ai-content-studio",
-  "version": "0.1.0",
-  "private": true,
+  "name": "apexium-ai-integration",
+  "version": "1.0.0",
+  "description": "AI API integration and prompt engineering module for Apexium AI Content Studio",
+  "main": "index.js",
   "scripts": {
-    "dev": "next dev --webpack",
-    "build": "next build --webpack",
-    "start": "next start",
-    "lint": "eslint"
+    "start": "node api.js && node index.js",
+    "test": "node test/manualTest.js"
   },
   "dependencies": {
-    "lucide-react": "^1.26.0",
-    "next": "16.2.11",
-    "react": "19.2.4",
-    "react-dom": "19.2.4"
-  },
-  "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "16.2.11",
-    "tailwindcss": "^4",
-    "typescript": "^5"
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2"
   }
 }
