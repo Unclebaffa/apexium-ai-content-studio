@@ -3,22 +3,30 @@
 import React from "react";
 import { Eye, Sparkles } from "lucide-react";
 import SkeletonLoader from "./SkeletonLoader";
-import GeneratedContentCard from "./GeneratedContentCard";
+import GeneratedContentCard, { GeneratedContentItem } from "./GeneratedContentCard";
 
 interface ContentPreviewProps {
   isLoading?: boolean;
   hasOutput?: boolean;
+  contentItem?: GeneratedContentItem | null;
   topic?: string;
   tone?: string;
   model?: string;
+  isSaving?: boolean;
+  isApproving?: boolean;
+  onSave?: () => void;
   onApprove?: () => void;
 }
 
 export default function ContentPreview({ 
   isLoading = false, 
   hasOutput = false,
+  contentItem,
   tone = "Professional", 
   model = "Google Gemini 1.5 Pro",
+  isSaving = false,
+  isApproving = false,
+  onSave,
   onApprove
 }: ContentPreviewProps) {
   return (
@@ -46,11 +54,15 @@ export default function ContentPreview({
         {isLoading ? (
           /* SKELETON LOADING STATE */
           <SkeletonLoader />
-        ) : hasOutput ? (
+        ) : hasOutput && (contentItem || tone) ? (
           /* RENDERED CONTENT STATE (Module 3) */
           <GeneratedContentCard 
+            contentItem={contentItem}
             tone={tone} 
             model={model} 
+            isSaving={isSaving}
+            isApproving={isApproving}
+            onSave={onSave}
             onApprove={onApprove}
           />
         ) : (

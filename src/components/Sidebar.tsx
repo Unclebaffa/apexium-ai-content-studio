@@ -8,48 +8,44 @@ import {
   Settings, 
   ChevronRight, 
   Sparkles, 
-  Database
+  Database,
+  Trash2
 } from "lucide-react";
 import HistoryItemCard from "./HistoryItemCard";
+import { GeneratedContentItem } from "./GeneratedContentCard";
+
+interface SidebarHistoryItem {
+  id: string;
+  title: string;
+  topic?: string;
+  tone: string;
+  model: string;
+  date: string;
+  content?: string;
+  wordCount?: number;
+  readTime?: string;
+  status?: string;
+}
 
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
+  history?: SidebarHistoryItem[];
+  activeHistoryId?: string | null;
+  onSelectHistoryItem?: (item: GeneratedContentItem) => void;
+  onNewSession?: () => void;
+  onClearHistory?: () => void;
 }
 
-// Mock Content History data with a rich, enterprise feel
-const MOCK_HISTORY = [
-  {
-    id: "hist-1",
-    title: "Understanding Quantum Computing Basics",
-    tone: "Educational",
-    model: "Gemini 1.5 Pro",
-    date: "2 hours ago"
-  },
-  {
-    id: "hist-2",
-    title: "Top 5 Node.js Frameworks for 2026",
-    tone: "Conversational",
-    model: "GPT-4o",
-    date: "Yesterday"
-  },
-  {
-    id: "hist-3",
-    title: "Apexium Product Launch Press Release",
-    tone: "Promotional",
-    model: "Claude 3.5 Sonnet",
-    date: "3 days ago"
-  },
-  {
-    id: "hist-4",
-    title: "Introduction to Edge Computing for IoT",
-    tone: "Professional",
-    model: "Gemini 1.5 Flash",
-    date: "1 week ago"
-  }
-];
-
-export default function Sidebar({ isOpen, onClose }: SidebarProps) {
+export default function Sidebar({ 
+  isOpen, 
+  onClose,
+  history = [],
+  activeHistoryId = null,
+  onSelectHistoryItem,
+  onNewSession,
+  onClearHistory
+}: SidebarProps) {
   return (
     <>
       {/* Mobile Backdrop Overlay */}
@@ -84,7 +80,11 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           
           {/* Main Action */}
           <div>
-            <button className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-3 text-sm font-semibold text-white shadow-md shadow-indigo-600/10 transition-all hover:from-indigo-500 hover:to-violet-500 hover:shadow-indigo-600/20 active:scale-98">
+            <button 
+              type="button"
+              onClick={onNewSession}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-3 text-sm font-semibold text-white shadow-md shadow-indigo-600/10 transition-all hover:from-indigo-500 hover:to-violet-500 hover:shadow-indigo-600/20 active:scale-98"
+            >
               <PlusCircle className="h-4 w-4" />
               <span>New Studio Session</span>
             </button>
@@ -128,22 +128,47 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                 <History className="h-3.5 w-3.5" />
                 <span>Content History</span>
               </h3>
-              <span className="text-2xs text-slate-400 hover:text-indigo-500 cursor-pointer">
-                Clear all
-              </span>
+              {history.length > 0 && (
+                <button
+                  type="button"
+                  onClick={onClearHistory}
+                  className="text-2xs text-slate-400 hover:text-rose-500 cursor-pointer flex items-center gap-1 transition-colors"
+                >
+                  <Trash2 className="h-3 w-3" />
+                  <span>Clear all</span>
+                </button>
+              )}
             </div>
 
             <div className="space-y-2">
-              {MOCK_HISTORY.map((item) => (
-                <HistoryItemCard
-                  key={item.id}
-                  title={item.title}
-                  tone={item.tone}
-                  model={item.model}
-                  date={item.date}
-                  onClick={() => console.log(`History card clicked: ${item.id}`)}
-                />
-              ))}
+              {history.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-slate-200 p-4 text-center dark:border-slate-800">
+                  <p className="text-3xs text-slate-400">No session history yet.</p>
+                </div>
+              ) : (
+                history.map((item) => (
+                  <HistoryItemCard
+                    key={item.id}
+                    id={item.id}
+                    title={item.title}
+                    tone={item.tone}
+                    model={item.model}
+                    date={item.date}
+                    isActive={activeHistoryId === item.id}
+                    onClick={() => onSelectHistoryItem && onSelectHistoryItem({
+                      id: item.id,
+                      title: item.title,
+                      topic: item.topic || item.title,
+                      tone: item.tone,
+                      model: item.model,
+                      content: item.content,
+                      wordCount: item.wordCount,
+                      readTime: item.readTime,
+                      status: item.status
+                    })}
+                  />
+                ))
+              )}
             </div>
           </div>
 
