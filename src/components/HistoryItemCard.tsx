@@ -4,10 +4,12 @@ import React from "react";
 import { Clock, Sparkles, Zap, Brain, Briefcase, BookOpen, Megaphone, MessageSquare, LucideIcon } from "lucide-react";
 
 interface HistoryItemCardProps {
+  id?: string;
   title: string;
   tone: "Professional" | "Educational" | "Promotional" | "Conversational" | string;
   model: "Gemini 1.5 Pro" | "GPT-4o" | "Claude 3.5 Sonnet" | string;
   date: string;
+  isActive?: boolean;
   onClick?: () => void;
 }
 
@@ -53,6 +55,7 @@ export default function HistoryItemCard({
   tone, 
   model, 
   date, 
+  isActive = false,
   onClick 
 }: HistoryItemCardProps) {
   const modelStyle = getModelStyles(model);
@@ -63,10 +66,17 @@ export default function HistoryItemCard({
   return (
     <div
       onClick={onClick}
-      className="group relative flex flex-col gap-2 rounded-xl border border-slate-200/50 bg-white p-3.5 shadow-2xs transition-all duration-200 hover:scale-[1.01] hover:border-indigo-200 hover:shadow-xs dark:border-slate-800/40 dark:bg-slate-900/40 dark:hover:border-indigo-900/40 cursor-pointer active:scale-99"
+      className={`group relative flex flex-col gap-2 rounded-xl border p-3.5 shadow-2xs transition-all duration-200 hover:scale-[1.01] hover:shadow-xs cursor-pointer active:scale-99
+        ${isActive 
+          ? "border-indigo-500 bg-indigo-50/40 dark:border-indigo-700 dark:bg-indigo-950/30 ring-2 ring-indigo-500/10" 
+          : "border-slate-200/50 bg-white hover:border-indigo-200 dark:border-slate-800/40 dark:bg-slate-900/40 dark:hover:border-indigo-900/40"
+        }
+      `}
     >
       {/* Truncated Title Topic */}
-      <p className="line-clamp-2 text-xs font-semibold text-slate-700 transition-colors group-hover:text-indigo-600 dark:text-slate-300 dark:group-hover:text-indigo-400 leading-normal">
+      <p className={`line-clamp-2 text-xs font-semibold leading-normal transition-colors
+        ${isActive ? "text-indigo-700 dark:text-indigo-300" : "text-slate-700 group-hover:text-indigo-600 dark:text-slate-300 dark:group-hover:text-indigo-400"}
+      `}>
         {title}
       </p>
 

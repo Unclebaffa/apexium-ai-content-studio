@@ -1,61 +1,238 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
 import ContentGeneratorForm from "@/components/ContentGeneratorForm";
 import ContentPreview from "@/components/ContentPreview";
+import { GeneratedContentItem } from "@/components/GeneratedContentCard";
 import { Play, Sparkles, RefreshCw, AlertTriangle } from "lucide-react";
 
 export default function Home() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [topic, setTopic] = useState("");
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isApproving, setIsApproving] = useState(false);
   const [hasOutput, setHasOutput] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [generatedContent, setGeneratedContent] = useState<GeneratedContentItem | null>(null);
+  const [contentHistory, setContentHistory] = useState<any[]>([]);
+  const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null);
   const [generationMeta, setGenerationMeta] = useState({
     tone: "Professional",
     model: "Google Gemini 1.5 Pro",
   });
 
-  const handleGenerate = (data: { topic: string; tone: string; model: string }) => {
-    setIsLoading(true);
+  // Fetch initial content history on mount
+  useEffect(() => {
+    fetchHistory();
+  }, []);
+
+  const fetchHistory = async () => {
+    try {
+      const res = await fetch("/api/history");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && Array.isArray(data.history)) {
+          setContentHistory(data.history);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load content history:", err);
+    }
+  };
+
+  const handleGenerate = async (data: { topic: string; tone: string; model: string }) => {
+    setIsGenerating(true);
     setHasOutput(false);
     setErrorMessage("");
+    setSelectedHistoryId(null);
     setGenerationMeta({
       tone: data.tone,
       model: data.model,
     });
-    
-    // Simulate generation pipeline runtime delay (1.8 seconds)
-    setTimeout(() => {
-      setIsLoading(false);
+
+    try {
+      const response = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || "Unable to generate content. Please try again.");
+      }
+
+      const newItem: GeneratedContentItem = result.data;
+      setGeneratedContent(newItem);
       setHasOutput(true);
-    }, 1800);
+
+      // Prepend to history list in frontend state
+      const historyItem = {
+        id: newItem.id || `hist-${Date.now()}`,
+        title: newItem.topic ? (newItem.topic.length > 45 ? `${newItem.topic.slice(0, 45)}...` : newItem.topic) : "Generated Content",
+        topic: newItem.topic,
+        tone: newItem.tone || data.tone,
+        model: newItem.model || data.model,
+        date: "Just now",
+        content: newItem.content,
+        wordCount: newItem.wordCount,
+        readTime: newItem.readTime,
+        status: newItem.status || "Draft"
+      };
+
+      setContentHistory(prev => [historyItem, ...prev]);
+    } catch (err: unknown) {
+      const errorText = err instanceof Error ? err.message : "Failed to connect to AI engine.";
+      setErrorMessage(errorText);
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
-  // State-toggle helpers for design review demonstrations
-  const setDemoSuccess = () => {
-    setIsLoading(false);
+  const handleSaveContent = async () => {
+    if (!generatedContent) return;
+
+    setIsSaving(true);
+    try {
+      const response = await fetch("/api/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: generatedContent.id,
+          topic: generatedContent.topic,
+          tone: generatedContent.tone,
+          model: generatedContent.model,
+          content: generatedContent.content,
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || "Failed to save content.");
+      }
+
+      // Update generated content status
+      setGeneratedContent(prev => prev ? { ...prev, status: "Saved", saved: true } : null);
+
+      // Update history entry status
+      if (generatedContent.id) {
+        setContentHistory(prev =>
+          prev.map(item => item.id === generatedContent.id ? { ...item, status: "Saved" } : item)
+        );
+      }
+    } catch (err: unknown) {
+      const errorText = err instanceof Error ? err.message : "Save request failed.";
+      setErrorMessage(errorText);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleApproveContent = async () => {
+    if (!generatedContent) return;
+
+    setIsApproving(true);
+    try {
+      const response = await fetch("/api/approve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: generatedContent.id,
+          topic: generatedContent.topic,
+          tone: generatedContent.tone,
+          model: generatedContent.model,
+          content: generatedContent.content,
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || "Approval request failed.");
+      }
+
+      // Update generated content status
+      setGeneratedContent(prev => prev ? { ...prev, status: "Approved" } : null);
+
+      // Update history entry status
+      if (generatedContent.id) {
+        setContentHistory(prev =>
+          prev.map(item => item.id === generatedContent.id ? { ...item, status: "Approved" } : item)
+        );
+      }
+    } catch (err: unknown) {
+      const errorText = err instanceof Error ? err.message : "Approval request failed.";
+      setErrorMessage(errorText);
+    } finally {
+      setIsApproving(false);
+    }
+  };
+
+  const handleSelectHistoryItem = (item: GeneratedContentItem) => {
+    setSelectedHistoryId(item.id || null);
+    setGeneratedContent(item);
+    setTopic(item.topic || "");
+    setGenerationMeta({
+      tone: item.tone || "Professional",
+      model: item.model || "Google Gemini 1.5 Pro"
+    });
     setHasOutput(true);
     setErrorMessage("");
   };
 
+  const handleNewSession = () => {
+    setTopic("");
+    setGeneratedContent(null);
+    setHasOutput(false);
+    setSelectedHistoryId(null);
+    setErrorMessage("");
+  };
+
+  const handleClearHistory = async () => {
+    try {
+      await fetch("/api/history", { method: "DELETE" });
+      setContentHistory([]);
+      setSelectedHistoryId(null);
+    } catch (err) {
+      console.error("Failed to clear history:", err);
+    }
+  };
+
+  // State-toggle helpers for design review demonstrations
+  const setDemoSuccess = () => {
+    setIsGenerating(false);
+    setHasOutput(true);
+    setErrorMessage("");
+    if (!generatedContent) {
+      setGeneratedContent({
+        id: "demo-1",
+        title: "Overcoming Latency: Edge Computing for Industrial IoT (IIoT)",
+        topic: "Overcoming Latency: Edge Computing for Industrial IoT (IIoT)",
+        tone: generationMeta.tone,
+        model: generationMeta.model,
+        status: "Draft",
+        content: `## Overcoming Latency: Edge Computing for Industrial IoT (IIoT)\n\nIn modern smart manufacturing, microseconds dictate success. As industrial plants deploy thousands of high-fidelity sensors measuring pressure, vibration, and temperature, transmitting this massive stream of telemetry to a centralized cloud introduces severe bottlenecks. This is where **Edge Computing** shifts the paradigm.\n\n### The Problem: Cloud Backhaul Overload\nHistorically, IoT architectures pushed all telemetry to central databases. Under this model, operators encounter:\n1. **Network Congestion:** High bandwidth consumption choking local gateways.\n2. **Jitter & Latency:** Multi-second roundtrips preventing real-time control loops.\n3. **Connectivity Dependency:** If connection drops, safety critical shutdown metrics fail.\n\n### The Solution: Deploying Intelligence at the Edge\nBy positioning edge gateways (powered by lightweight runtimes) directly on the factory floor, companies preprocess telemetry locally:\n- **Anomaly Detection:** Machine learning inference identifies machine wear within 5ms.\n- **Data Aggregation:** Filter out normal telemetry, transmitting only critical state changes.\n- **Fail-safe Autonomy:** Local controllers maintain operations even during internet blackouts.\n\n### Key Business Outcomes\nImplementing this edge architecture at **Apexium Technologies** resulted in a **45% reduction** in network operational costs and improved hardware failure response times by **82%**.`
+      });
+    }
+  };
+
   const setDemoLoading = () => {
-    setIsLoading(true);
+    setIsGenerating(true);
     setHasOutput(false);
     setErrorMessage("");
   };
 
   const setDemoError = () => {
-    setIsLoading(false);
+    setIsGenerating(false);
     setHasOutput(false);
-    setErrorMessage("API connection timeout. The Google Gemini model failed to respond within 15000ms. Please check your API key configurations.");
+    setErrorMessage("Unable to connect to AI service. Please check your network connection and try again.");
   };
 
   const resetWorkspace = () => {
-    setIsLoading(false);
-    setHasOutput(false);
-    setErrorMessage("");
+    handleNewSession();
   };
 
   return (
@@ -69,6 +246,11 @@ export default function Home() {
         <Sidebar 
           isOpen={isSidebarOpen} 
           onClose={() => setIsSidebarOpen(false)} 
+          history={contentHistory}
+          activeHistoryId={selectedHistoryId}
+          onSelectHistoryItem={handleSelectHistoryItem}
+          onNewSession={handleNewSession}
+          onClearHistory={handleClearHistory}
         />
         
         {/* Main Content Area Container */}
@@ -134,19 +316,25 @@ export default function Home() {
             <div className="lg:col-span-6 xl:col-span-5">
               <ContentGeneratorForm 
                 onSubmit={handleGenerate} 
-                isLoading={isLoading} 
+                isLoading={isGenerating} 
                 errorMessage={errorMessage}
                 onDismissError={() => setErrorMessage("")}
+                topicValue={topic}
+                onTopicChange={setTopic}
               />
             </div>
             
             <div className="lg:col-span-6 xl:col-span-7 h-full">
               <ContentPreview 
-                isLoading={isLoading} 
+                isLoading={isGenerating} 
                 hasOutput={hasOutput}
+                contentItem={generatedContent}
                 tone={generationMeta.tone}
                 model={generationMeta.model}
-                onApprove={() => console.log("Approval event triggered.")}
+                isSaving={isSaving}
+                isApproving={isApproving}
+                onSave={handleSaveContent}
+                onApprove={handleApproveContent}
               />
             </div>
           </div>

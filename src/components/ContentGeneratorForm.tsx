@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   Sparkles, 
   ChevronDown, 
@@ -10,7 +10,6 @@ import {
   Megaphone, 
   MessageSquare, 
   Loader2, 
-  Bot, 
   Zap, 
   Brain 
 } from "lucide-react";
@@ -22,6 +21,8 @@ interface ContentGeneratorFormProps {
   isLoading?: boolean;
   errorMessage?: string;
   onDismissError?: () => void;
+  topicValue?: string;
+  onTopicChange?: (val: string) => void;
 }
 
 const TONES = [
@@ -92,32 +93,55 @@ export default function ContentGeneratorForm({
   onSubmit, 
   isLoading: propIsLoading,
   errorMessage,
-  onDismissError
+  onDismissError,
+  topicValue,
+  onTopicChange
 }: ContentGeneratorFormProps) {
-  const [topic, setTopic] = useState("");
+  const [topic, setTopic] = useState(topicValue || "");
   const [selectedTone, setSelectedTone] = useState(TONES[0]);
   const [selectedModel, setSelectedModel] = useState(MODELS[0]);
   const [isToneDropdownOpen, setIsToneDropdownOpen] = useState(false);
   const [localIsLoading, setLocalIsLoading] = useState(false);
+  const [validationError, setValidationError] = useState("");
 
   const isLoading = propIsLoading !== undefined ? propIsLoading : localIsLoading;
 
+  useEffect(() => {
+    if (topicValue !== undefined) {
+      setTopic(topicValue);
+    }
+  }, [topicValue]);
+
+  const handleTextareaChange = (val: string) => {
+    const sliced = val.slice(0, 500);
+    setTopic(sliced);
+    if (onTopicChange) onTopicChange(sliced);
+    if (validationError && sliced.trim()) {
+      setValidationError("");
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!topic.trim()) return;
+
+    if (!topic.trim()) {
+      setValidationError("Please enter a content topic or prompt before generating.");
+      return;
+    }
+
+    setValidationError("");
 
     if (onSubmit) {
       onSubmit({
-        topic,
+        topic: topic.trim(),
         tone: selectedTone.name,
         model: selectedModel.name
       });
     } else {
-      // Mock loading state for stand-alone demo
       setLocalIsLoading(true);
       setTimeout(() => {
         setLocalIsLoading(false);
-      }, 2000);
+      }, 1800);
     }
   };
 
@@ -132,11 +156,19 @@ export default function ContentGeneratorForm({
     "Create a social thread launching a new AI code assistant called Antigravity."
   ];
 
+  const activeErrorMessage = errorMessage || validationError;
+
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs dark:border-slate-800 dark:bg-slate-900/40 backdrop-blur-sm">
-      {errorMessage && (
+      {activeErrorMessage && (
         <div className="mb-5">
-          <ErrorBanner message={errorMessage} onDismiss={onDismissError} />
+          <ErrorBanner 
+            message={activeErrorMessage} 
+            onDismiss={() => {
+              setValidationError("");
+              if (onDismissError) onDismissError();
+            }} 
+          />
         </div>
       )}
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -155,7 +187,7 @@ export default function ContentGeneratorForm({
             <textarea
               id="topic"
               value={topic}
-              onChange={(e) => setTopic(e.target.value.slice(0, 500))}
+              onChange={(e) => handleTextareaChange(e.target.value)}
               placeholder="E.g., Write a comprehensive explanation of Cloud databases, including advantages, security compliance, and vendor comparison..."
               disabled={isLoading}
               rows={4}
@@ -169,7 +201,7 @@ export default function ContentGeneratorForm({
               <button
                 key={index}
                 type="button"
-                onClick={() => setTopic(suggestion)}
+                onClick={() => handleTextareaChange(suggestion)}
                 className="rounded-lg bg-slate-50 border border-slate-200/80 px-2.5 py-1 text-2xs text-slate-500 transition-all hover:bg-slate-100 hover:text-slate-700 dark:bg-slate-900/40 dark:border-slate-800/80 dark:text-slate-400 dark:hover:bg-slate-800/80"
               >
                 {suggestion.slice(0, 36)}...
