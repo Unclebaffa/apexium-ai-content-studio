@@ -5,7 +5,7 @@
  */
 
 require("dotenv").config();
-const { generateContent } = require("../modelSwitcher");
+const { generateContent } = require("./modelSwitcher");
 
 async function run() {
   const cases = [

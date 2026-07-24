@@ -1,4 +1,13 @@
 import { NextResponse } from "next/server";
+import path from "path";
+
+// Helper to determine AI provider key based on model string
+function mapModelToProvider(modelName: string): "openai" | "gemini" | "claude" {
+  const lower = modelName.toLowerCase();
+  if (lower.includes("openai") || lower.includes("gpt")) return "openai";
+  if (lower.includes("claude") || lower.includes("anthropic")) return "claude";
+  return "gemini";
+}
 
 export async function POST(request: Request) {
   try {
@@ -16,15 +25,42 @@ export async function POST(request: Request) {
     const selectedTone = tone || "Professional";
     const selectedModel = model || "Google Gemini 1.5 Pro";
 
-    // Dynamic generation generator based on topic, tone, and model
     const title = topic.length > 50 ? `${topic.slice(0, 47)}...` : topic;
     const timestamp = new Date().toISOString();
     const id = `gen-${Date.now()}`;
 
     let generatedText = "";
+    let providerUsed = mapModelToProvider(selectedModel);
+    let isLiveAiGenerated = false;
 
-    if (selectedTone.toLowerCase() === "educational") {
-      generatedText = `## Comprehensive Guide: ${title}
+    // Attempt live AI provider generation if API key exists in environment
+    const hasAiKey = process.env.OPENAI_API_KEY || process.env.GEMINI_API_KEY || process.env.ANTHROPIC_API_KEY;
+
+    if (hasAiKey) {
+      try {
+        const modelSwitcherPath = path.resolve(process.cwd(), "modelSwitcher.js");
+        // Dynamically require modelSwitcher module
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const { generateContent } = require(modelSwitcherPath);
+        const aiResponse = await generateContent({
+          provider: providerUsed,
+          contentType: "blog_intro",
+          tone: selectedTone.toLowerCase(),
+          topic: topic.trim(),
+        });
+        if (aiResponse && aiResponse.text) {
+          generatedText = aiResponse.text;
+          isLiveAiGenerated = true;
+        }
+      } catch (aiErr) {
+        console.warn("AI Provider call failed, utilizing domain content fallback:", aiErr);
+      }
+    }
+
+    // Fallback structured content generator (if no live API key or provider fails)
+    if (!generatedText) {
+      if (selectedTone.toLowerCase() === "educational") {
+        generatedText = `## Comprehensive Guide: ${title}
 
 Understanding the core mechanics of **${topic}** requires breaking down key structural components and technical methodologies.
 
@@ -42,8 +78,8 @@ By leveraging advanced capabilities of **${selectedModel}**, teams achieve high 
 
 ### 3. Summary & Best Practices
 Adopting this structured approach ensures scalability, maintainability, and high reliability across production environments.`;
-    } else if (selectedTone.toLowerCase() === "promotional") {
-      generatedText = `## Launching the Next Generation of ${title}! 🚀
+      } else if (selectedTone.toLowerCase() === "promotional") {
+        generatedText = `## Launching the Next Generation of ${title}! 🚀
 
 We are thrilled to announce a major breakthrough in **${topic}**! Designed for forward-thinking organizations, this solution redefines efficiency, speed, and intelligence.
 
@@ -57,8 +93,8 @@ In today's fast-moving market, static tools can no longer keep up. Key features 
 Teams adopting this platform report up to **45% increase in operational output** and a **60% reduction in workflow bottlenecks**.
 
 **Ready to transform your content workflow?** Experience the power of Apexium AI Content Studio today!`;
-    } else if (selectedTone.toLowerCase() === "conversational") {
-      generatedText = `## Let's Talk About: ${title} 👋
+      } else if (selectedTone.toLowerCase() === "conversational") {
+        generatedText = `## Let's Talk About: ${title} 👋
 
 Ever wondered how **${topic}** is changing the way we build modern digital products? Let's dive into what's actually happening behind the scenes.
 
@@ -74,9 +110,9 @@ Working with **${selectedModel}**, we noticed how natural and fluent responses b
 > *"Simplicity is the ultimate sophistication when crafting content for modern audiences."*
 
 Give it a try and share your feedback with our team!`;
-    } else {
-      // Default: Professional
-      generatedText = `## Strategic Analysis: ${title}
+      } else {
+        // Default: Professional
+        generatedText = `## Strategic Analysis: ${title}
 
 In modern enterprise operations, implementing robust strategies for **${topic}** has become a critical operational imperative. This report analyzes key considerations, deployment models, and expected business outcomes.
 
@@ -96,6 +132,7 @@ Utilizing **${selectedModel}** with a **${selectedTone}** tone framework enables
 Deploying this architecture at Apexium Technologies delivers measurable improvements:
 - **Operational Cost Reduction:** Up to 40% bandwidth and processing efficiency.
 - **Workflow Velocity:** Accelerating content turnaround from days to seconds.`;
+      }
     }
 
     // Calculate word count & reading time
@@ -107,13 +144,15 @@ Deploying this architecture at Apexium Technologies delivers measurable improvem
       topic,
       tone: selectedTone,
       model: selectedModel,
+      provider: providerUsed,
       title,
       content: generatedText,
       wordCount: words,
       readTime: `~${readTimeMinutes} min read`,
       createdAt: timestamp,
       status: "Draft",
-      saved: false
+      saved: false,
+      isLiveAiGenerated
     };
 
     return NextResponse.json({

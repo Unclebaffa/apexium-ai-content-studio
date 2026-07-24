@@ -5,10 +5,10 @@
  * normalized response ready to hand off to the automation layer (n8n/Zapier/Make).
  */
 
-const openai = require("./providers/openai");
-const gemini = require("./providers/gemini");
-const claude = require("./providers/claude");
-const { buildPrompt } = require("./prompts/templates");
+const openai = require("./openai");
+const gemini = require("./gemini");
+const claude = require("./claude");
+const { buildPrompt } = require("./templates");
 
 const PROVIDERS = {
   openai,
