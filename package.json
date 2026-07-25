@@ -4,7 +4,7 @@
   "description": "AI API integration and prompt engineering module for Apexium AI Content Studio",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
+    "start": "node api.js && node index.js",
     "test": "node test/manualTest.js"
   },
   "dependencies": {
