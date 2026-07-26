@@ -17,6 +17,7 @@ export default function Home() {
   const [hasOutput, setHasOutput] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [generatedContent, setGeneratedContent] = useState<GeneratedContentItem | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [contentHistory, setContentHistory] = useState<any[]>([]);
   const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("playground");
@@ -49,10 +50,7 @@ export default function Home() {
     setHasOutput(false);
     setErrorMessage("");
     setSelectedHistoryId(null);
-    setGenerationMeta({
-      tone: data.tone,
-      model: data.model,
-    });
+    setGenerationMeta({ tone: data.tone, model: data.model });
 
     try {
       const response = await fetch("/api/generate", {
@@ -71,21 +69,8 @@ export default function Home() {
       setGeneratedContent(newItem);
       setHasOutput(true);
 
-      // Prepend to history list
-      const historyItem = {
-        id: newItem.id || `hist-${Date.now()}`,
-        title: newItem.topic ? (newItem.topic.length > 45 ? `${newItem.topic.slice(0, 45)}...` : newItem.topic) : "Generated Content",
-        topic: newItem.topic,
-        tone: newItem.tone || data.tone,
-        model: newItem.model || data.model,
-        date: "Just now",
-        content: newItem.content,
-        wordCount: newItem.wordCount,
-        readTime: newItem.readTime,
-        status: newItem.status || "Draft"
-      };
-
-      setContentHistory(prev => [historyItem, ...prev]);
+      // Refresh sidebar history from server
+      await fetchHistory();
     } catch (err: unknown) {
       const errorText = err instanceof Error ? err.message : "Failed to connect to AI engine.";
       setErrorMessage(errorText);
@@ -96,7 +81,6 @@ export default function Home() {
 
   const handleSaveContent = async () => {
     if (!generatedContent) return;
-
     setIsSaving(true);
     try {
       const response = await fetch("/api/save", {
@@ -108,24 +92,17 @@ export default function Home() {
           tone: generatedContent.tone,
           model: generatedContent.model,
           content: generatedContent.content,
+          title: generatedContent.title,
         }),
       });
 
       const result = await response.json();
-      if (!response.ok || !result.success) {
-        throw new Error(result.error || "Failed to save content.");
-      }
+      if (!response.ok || !result.success) throw new Error(result.error || "Failed to save content.");
 
       setGeneratedContent(prev => prev ? { ...prev, status: "Saved", saved: true } : null);
-
-      if (generatedContent.id) {
-        setContentHistory(prev =>
-          prev.map(item => item.id === generatedContent.id ? { ...item, status: "Saved" } : item)
-        );
-      }
+      await fetchHistory();
     } catch (err: unknown) {
-      const errorText = err instanceof Error ? err.message : "Save request failed.";
-      setErrorMessage(errorText);
+      setErrorMessage(err instanceof Error ? err.message : "Save request failed.");
     } finally {
       setIsSaving(false);
     }
@@ -133,7 +110,6 @@ export default function Home() {
 
   const handleApproveContent = async () => {
     if (!generatedContent) return;
-
     setIsApproving(true);
     try {
       const response = await fetch("/api/approve", {
@@ -145,24 +121,22 @@ export default function Home() {
           tone: generatedContent.tone,
           model: generatedContent.model,
           content: generatedContent.content,
+          title: generatedContent.title,
         }),
       });
 
       const result = await response.json();
-      if (!response.ok || !result.success) {
-        throw new Error(result.error || "Approval request failed.");
-      }
+      if (!response.ok || !result.success) throw new Error(result.error || "Approval request failed.");
 
-      setGeneratedContent(prev => prev ? { ...prev, status: "Approved" } : null);
-
-      if (generatedContent.id) {
-        setContentHistory(prev =>
-          prev.map(item => item.id === generatedContent.id ? { ...item, status: "Approved" } : item)
-        );
-      }
+      const appData = result.data;
+      setGeneratedContent(prev => prev ? {
+        ...prev,
+        status: "Approved",
+        automationMessage: appData?.automationMessage || "Content approved. Automation trigger sent.",
+      } : null);
+      await fetchHistory();
     } catch (err: unknown) {
-      const errorText = err instanceof Error ? err.message : "Approval request failed.";
-      setErrorMessage(errorText);
+      setErrorMessage(err instanceof Error ? err.message : "Approval request failed.");
     } finally {
       setIsApproving(false);
     }
@@ -172,10 +146,7 @@ export default function Home() {
     setSelectedHistoryId(item.id || null);
     setGeneratedContent(item);
     setTopic(item.topic || "");
-    setGenerationMeta({
-      tone: item.tone || "Professional",
-      model: item.model || "Gemini 1.5 Pro"
-    });
+    setGenerationMeta({ tone: item.tone || "Professional", model: item.model || "Gemini 1.5 Pro" });
     setHasOutput(true);
     setErrorMessage("");
   };
@@ -198,7 +169,7 @@ export default function Home() {
     }
   };
 
-  // Demo state triggers
+  // Demo UX state triggers (dev tool bar)
   const setDemoSuccess = () => {
     setIsGenerating(false);
     setHasOutput(true);
@@ -211,7 +182,7 @@ export default function Home() {
         tone: generationMeta.tone,
         model: generationMeta.model,
         status: "Draft",
-        content: `## Understanding Quantum Computing Basics\n\nQuantum computing represents a fundamental shift in how we process information. Unlike classical computers that rely on binary bits (0 or 1), quantum computers leverage quantum bits or **qubits**.\n\n### Core Quantum Principles\n1. **Superposition:** Allows qubits to exist in multiple states simultaneously, exponentially scaling computational power.\n2. **Entanglement:** Interlinks qubits such that the state of one instantly influences another, enabling complex parallel logic.\n3. **Quantum Interference:** Amplifies correct analytical paths while canceling wrong solutions.`
+        content: `## Understanding Quantum Computing Basics\n\nQuantum computing represents a fundamental shift in how we process information. Unlike classical computers that rely on binary bits (0 or 1), quantum computers leverage quantum bits or **qubits**.\n\n### Core Quantum Principles\n1. **Superposition:** Allows qubits to exist in multiple states simultaneously, exponentially scaling computational power.\n2. **Entanglement:** Interlinks qubits such that the state of one instantly influences another, enabling complex parallel logic.\n3. **Quantum Interference:** Amplifies correct analytical paths while canceling wrong solutions.`,
       });
     }
   };
@@ -230,19 +201,19 @@ export default function Home() {
 
   return (
     <div className="flex min-h-screen flex-col bg-[#0F172A] text-[#CBD5E1]">
-      {/* ── Section 1: Navbar ── */}
-      <Navbar 
-        onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} 
-        isSidebarOpen={isSidebarOpen} 
+      {/* ── Navbar ── */}
+      <Navbar
+        onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+        isSidebarOpen={isSidebarOpen}
       />
-      
-      {/* ── Section 11: Main Wrapper Layout (Sidebar | Main Content | Right Panel) ── */}
+
+      {/* ── Main Layout ── */}
       <div className="flex flex-1 relative min-h-[calc(100vh-64px)]">
-        
-        {/* ── Section 2: Sidebar (Left Panel) ── */}
-        <Sidebar 
-          isOpen={isSidebarOpen} 
-          onClose={() => setIsSidebarOpen(false)} 
+
+        {/* ── Sidebar (Left Panel) ── */}
+        <Sidebar
+          isOpen={isSidebarOpen}
+          onClose={() => setIsSidebarOpen(false)}
           history={contentHistory}
           activeHistoryId={selectedHistoryId}
           onSelectHistoryItem={handleSelectHistoryItem}
@@ -251,59 +222,48 @@ export default function Home() {
           activeTab={activeTab}
           setActiveTab={setActiveTab}
         />
-        
-        {/* ── Grid Container: Center Panel + Right Panel ── */}
+
+        {/* ── Center + Right Panels ── */}
         <div className="flex flex-1 flex-col lg:flex-row w-full">
-          
-          {/* ── Section 3: Main Content Area (Center Panel) ── */}
-          <main 
+
+          {/* ── Center Panel: Generator Form ── */}
+          <main
             className="flex-1 w-full overflow-y-auto"
-            style={{
-              background: "#0F172A",
-              padding: "40px",
-              maxWidth: "800px"
-            }}
+            style={{ background: "#0F172A", padding: "40px", maxWidth: "800px" }}
           >
-            {/* Header row with UX States Control */}
+            {/* Page header */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-[40px]">
               <div>
-                {/* Main Heading */}
-                <h1 
+                <h1
                   style={{
                     fontSize: "28px",
                     fontWeight: 700,
                     color: "#FFFFFF",
                     letterSpacing: "-0.5px",
                     lineHeight: 1.2,
-                    marginBottom: "12px"
+                    marginBottom: "12px",
                   }}
                 >
                   AI Content Studio
                 </h1>
-
-                {/* Subheading (Tagline) */}
-                <p 
+                <p
                   style={{
                     fontSize: "15px",
                     fontWeight: 400,
                     color: "#CBD5E1",
                     lineHeight: 1.6,
-                    maxWidth: "600px"
+                    maxWidth: "600px",
                   }}
                 >
-                  Draft and generate social media copies, press releases, blog drafts, and emails with enterprise-grade models.
+                  Draft and generate social media copies, press releases, blog drafts, and emails
+                  with enterprise-grade models.
                 </p>
               </div>
 
-              {/* UX States Badge bar (Section 1 Spec) */}
-              <div 
+              {/* Dev UX state toolbar */}
+              <div
                 className="flex items-center gap-3 shrink-0 self-start sm:self-center"
-                style={{
-                  background: "transparent",
-                  border: "1px solid #2D3748",
-                  padding: "6px 12px",
-                  borderRadius: "6px"
-                }}
+                style={{ border: "1px solid #2D3748", padding: "6px 12px", borderRadius: "6px" }}
               >
                 <button
                   type="button"
@@ -314,9 +274,7 @@ export default function Home() {
                   <Sparkles className="h-3 w-3" />
                   <span>Success</span>
                 </button>
-
                 <span style={{ color: "#2D3748" }}>|</span>
-
                 <button
                   type="button"
                   onClick={setDemoLoading}
@@ -326,9 +284,7 @@ export default function Home() {
                   <Play className="h-3 w-3" />
                   <span>Loading</span>
                 </button>
-
                 <span style={{ color: "#2D3748" }}>|</span>
-
                 <button
                   type="button"
                   onClick={setDemoError}
@@ -338,9 +294,7 @@ export default function Home() {
                   <AlertTriangle className="h-3 w-3" />
                   <span>Error</span>
                 </button>
-
                 <span style={{ color: "#2D3748" }}>|</span>
-
                 <button
                   type="button"
                   onClick={handleNewSession}
@@ -353,10 +307,9 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Content Generator Form */}
-            <ContentGeneratorForm 
-              onSubmit={handleGenerate} 
-              isLoading={isGenerating} 
+            <ContentGeneratorForm
+              onSubmit={handleGenerate}
+              isLoading={isGenerating}
               errorMessage={errorMessage}
               onDismissError={() => setErrorMessage("")}
               topicValue={topic}
@@ -364,10 +317,10 @@ export default function Home() {
             />
           </main>
 
-          {/* ── Section 4: Right Panel (Studio Preview / Output) ── */}
+          {/* ── Right Panel: Content Preview & Actions ── */}
           <div className="flex-1 lg:max-w-md xl:max-w-lg w-full">
-            <ContentPreview 
-              isLoading={isGenerating} 
+            <ContentPreview
+              isLoading={isGenerating}
               hasOutput={hasOutput}
               contentItem={generatedContent}
               tone={generationMeta.tone}

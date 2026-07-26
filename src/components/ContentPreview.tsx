@@ -19,17 +19,17 @@ interface ContentPreviewProps {
   onCancel?: () => void;
 }
 
-export default function ContentPreview({ 
-  isLoading = false, 
+export default function ContentPreview({
+  isLoading = false,
   hasOutput = false,
   contentItem,
-  tone = "Professional", 
+  tone = "Professional",
   model = "Gemini 1.5 Pro",
   isSaving = false,
   isApproving = false,
   onSave,
   onApprove,
-  onCancel
+  onCancel,
 }: ContentPreviewProps) {
   return (
     <div
@@ -37,7 +37,7 @@ export default function ContentPreview({
       style={{
         background: "#0F172A",
         borderLeft: "1px solid #1E293B",
-        padding: "40px",
+        padding: "32px",
       }}
     >
       {isLoading ? (
@@ -50,11 +50,7 @@ export default function ContentPreview({
                 type="button"
                 onClick={onCancel}
                 className="btn-secondary rounded-lg text-sm font-medium"
-                style={{
-                  height: "40px",
-                  padding: "0 24px",
-                  fontSize: "13px"
-                }}
+                style={{ height: "40px", padding: "0 24px", fontSize: "13px" }}
               >
                 Cancel Generation
               </button>
@@ -63,19 +59,18 @@ export default function ContentPreview({
         </div>
       ) : hasOutput && (contentItem || tone) ? (
         /* ── SUCCESS STATE ── */
-        <GeneratedContentCard 
+        <GeneratedContentCard
           contentItem={contentItem}
-          tone={tone} 
-          model={model} 
+          tone={tone}
+          model={model}
           isSaving={isSaving}
           isApproving={isApproving}
           onSave={onSave}
           onApprove={onApprove}
         />
       ) : (
-        /* ── DEFAULT EMPTY STATE (Section 4 Spec) ── */
+        /* ── EMPTY STATE ── */
         <div className="flex h-full flex-col items-center justify-center text-center my-auto py-12">
-          {/* 80x80px Wand magic icon with purple opacity 0.3 */}
           <div
             className="flex items-center justify-center rounded-2xl mb-6"
             style={{
@@ -85,30 +80,19 @@ export default function ContentPreview({
               borderRadius: "16px",
             }}
           >
-            <Wand2 
-              style={{
-                width: "40px",
-                height: "40px",
-                color: "#7C3AED",
-                opacity: 0.8
-              }} 
-            />
+            <Wand2 style={{ width: "40px", height: "40px", color: "#7C3AED", opacity: 0.8 }} />
           </div>
-
-          {/* Heading */}
           <h3
             style={{
               fontSize: "18px",
               fontWeight: 600,
               color: "#E2E8F0",
               textAlign: "center",
-              marginBottom: "12px"
+              marginBottom: "12px",
             }}
           >
             Studio Workspace Empty
           </h3>
-
-          {/* Description */}
           <p
             style={{
               fontSize: "14px",
@@ -116,10 +100,11 @@ export default function ContentPreview({
               color: "#94A3B8",
               lineHeight: "1.6",
               textAlign: "center",
-              maxWidth: "280px"
+              maxWidth: "280px",
             }}
           >
-            Enter your topic description on the left panel, select your tone, choose an AI engine, and click 'Generate Content' to draft content here.
+            Enter your topic description on the left panel, select your tone, choose an AI engine,
+            and click &apos;Generate Content&apos; to draft content here.
           </p>
         </div>
       )}
