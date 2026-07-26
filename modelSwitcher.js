@@ -1,8 +1,10 @@
 /**
  * Model Switcher
- * Central entry point for the Content Studio. Picks a provider (OpenAI, Gemini,
- * or Claude), applies the right tone-specific prompt template, and returns a
- * normalized response ready to hand off to the automation layer (n8n/Zapier/Make).
+ * Central entry point for the Content Studio.
+ *
+ * Selects an AI provider, builds the correct prompt, generates content,
+ * and returns a normalized response that can be passed to an automation
+ * platform such as n8n, Zapier, or Make.
  */
 
 const openai = require("./openai");
@@ -16,29 +18,72 @@ const PROVIDERS = {
   claude,
 };
 
+const FALLBACK_ORDER = ["claude", "openai", "gemini"];
+
 /**
+ * Generate AI content using the selected provider.
+ *
  * @param {Object} options
  * @param {string} options.provider - "openai" | "gemini" | "claude"
- * @param {string} options.contentType - e.g. "social_caption", "blog_intro", "ad_copy"
- * @param {string} options.tone - e.g. "professional", "casual", "persuasive"
- * @param {string} options.topic - what the content should be about
- * @param {number} [options.maxTokens]
- * @param {number} [options.attempt] - internal, used for fallback retries
+ * @param {string} options.contentType - Example: "social_caption"
+ * @param {string} options.tone - Example: "professional"
+ * @param {string} options.topic - The subject of the content
+ * @param {number} [options.maxTokens=800]
+ * @param {string[]} [options._tried] - Internal list of attempted providers
+ *
+ * @returns {Promise<Object>}
  */
-async function generateContent(options) {
-  const { provider, contentType, tone, topic, maxTokens = 800 } = options;
+async function generateContent(options = {}) {
+  const {
+    provider,
+    contentType,
+    tone,
+    topic,
+    maxTokens = 800,
+  } = options;
 
-  const chosen = PROVIDERS[provider];
-  if (!chosen) {
+  if (!provider) {
     throw new Error(
-      `Unknown provider "${provider}". Valid options: ${Object.keys(PROVIDERS).join(", ")}`
+      'A provider is required. Use "openai", "gemini", or "claude".'
     );
   }
 
-  const { systemPrompt, userPrompt } = buildPrompt({ contentType, tone, topic });
+  if (!contentType) {
+    throw new Error("A contentType is required.");
+  }
+
+  if (!tone) {
+    throw new Error("A tone is required.");
+  }
+
+  if (!topic) {
+    throw new Error("A topic is required.");
+  }
+
+  const chosenProvider = PROVIDERS[provider];
+
+  if (!chosenProvider) {
+    throw new Error(
+      `Unknown provider "${provider}". Valid options are: ${Object.keys(
+        PROVIDERS
+      ).join(", ")}`
+    );
+  }
+
+  if (typeof chosenProvider.generate !== "function") {
+    throw new Error(
+      `The "${provider}" provider does not export a generate function.`
+    );
+  }
+
+  const { systemPrompt, userPrompt } = buildPrompt({
+    contentType,
+    tone,
+    topic,
+  });
 
   try {
-    const result = await chosen.generate({
+    const result = await chosenProvider.generate({
       prompt: userPrompt,
       systemPrompt,
       maxTokens,
@@ -46,42 +91,61 @@ async function generateContent(options) {
 
     return {
       ...result,
+      provider,
       contentType,
       tone,
       topic,
       timestamp: new Date().toISOString(),
     };
-  } catch (err) {
-    return handleFallback({ err, options, systemPrompt, userPrompt });
+  } catch (error) {
+    return handleFallback({
+      error,
+      options: {
+        ...options,
+        maxTokens,
+      },
+    });
   }
 }
 
 /**
- * If the chosen provider fails (rate limit, outage, bad key), automatically
- * fall back to the next available provider in FALLBACK_ORDER instead of
- * failing the whole automation run.
+ * Try another provider when the selected provider fails.
+ *
+ * @param {Object} params
+ * @param {Error} params.error
+ * @param {Object} params.options
+ *
+ * @returns {Promise<Object>}
  */
-const FALLBACK_ORDER = ["claude", "openai", "gemini"];
+async function handleFallback({ error, options }) {
+  const triedProviders = options._tried || [options.provider];
 
-async function handleFallback({ err, options, systemPrompt, userPrompt }) {
-  const tried = options._tried || [options.provider];
-  const next = FALLBACK_ORDER.find((p) => !tried.includes(p));
+  const nextProvider = FALLBACK_ORDER.find(
+    (providerName) => !triedProviders.includes(providerName)
+  );
 
-  if (!next) {
+  if (!nextProvider) {
     throw new Error(
-      `All providers failed. Last error from "${options.provider}": ${err.message}`
+      `All AI providers failed. Last error from "${options.provider}": ${
+        error.message || "Unknown error"
+      }`
     );
   }
 
   console.warn(
-    `[modelSwitcher] "${options.provider}" failed (${err.message}). Falling back to "${next}"...`
+    `[modelSwitcher] "${options.provider}" failed: ${
+      error.message || "Unknown error"
+    }. Falling back to "${nextProvider}".`
   );
 
   return generateContent({
     ...options,
-    provider: next,
-    _tried: [...tried, next],
+    provider: nextProvider,
+    _tried: [...triedProviders, nextProvider],
   });
 }
 
-module.exports = { generateContent, PROVIDERS };
+module.exports = {
+  generateContent,
+  PROVIDERS,
+};

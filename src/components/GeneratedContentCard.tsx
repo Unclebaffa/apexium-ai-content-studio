@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Copy, Check, CheckCircle2, Clock, FileText, Send, Sparkles, Bookmark, Loader2 } from "lucide-react";
+import { Copy, Check, RefreshCw, Download, Sparkles, Clock, FileText } from "lucide-react";
 
 export interface GeneratedContentItem {
   id?: string;
@@ -31,11 +31,7 @@ interface GeneratedContentCardProps {
 export default function GeneratedContentCard({ 
   contentItem,
   tone = "Professional", 
-  model = "Google Gemini 1.5 Pro",
-  isSaving = false,
-  isApproving = false,
-  onSave,
-  onApprove 
+  model = "Gemini 1.5 Pro",
 }: GeneratedContentCardProps) {
   const [copied, setCopied] = useState(false);
 
@@ -45,8 +41,6 @@ export default function GeneratedContentCard({
   const displayTitle = contentItem?.title || contentItem?.topic || "Generated Studio Content";
   const displayWordCount = contentItem?.wordCount || (displayContent ? displayContent.trim().split(/\s+/).length : 218);
   const displayReadTime = contentItem?.readTime || `~${Math.max(1, Math.ceil(displayWordCount / 200))} min read`;
-  const isApproved = contentItem?.status === "Approved";
-  const isSaved = contentItem?.saved || contentItem?.status === "Saved" || contentItem?.status === "Approved";
 
   const handleCopy = () => {
     if (!displayContent) return;
@@ -55,7 +49,17 @@ export default function GeneratedContentCard({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Convert markdown headers and paragraphs for clean presentation
+  const handleDownload = () => {
+    if (!displayContent) return;
+    const element = document.createElement("a");
+    const file = new Blob([displayContent], { type: "text/plain" });
+    element.href = URL.createObjectURL(file);
+    element.download = `${displayTitle.toLowerCase().replace(/[^a-z0-9]/g, "_")}.md`;
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+  };
+
   const renderFormattedContent = (rawText: string) => {
     if (!rawText) return null;
 
@@ -64,37 +68,28 @@ export default function GeneratedContentCard({
       const trimmed = block.trim();
       if (trimmed.startsWith("## ")) {
         return (
-          <h2 key={idx} className="text-base font-bold text-slate-950 dark:text-white leading-tight mb-3">
+          <h2 key={idx} style={{ fontSize: "16px", fontWeight: 700, color: "#FFFFFF", marginBottom: "12px", marginTop: idx > 0 ? "16px" : 0 }}>
             {trimmed.replace(/^##\s+/, "")}
           </h2>
         );
       } else if (trimmed.startsWith("### ")) {
         return (
-          <h3 key={idx} className="text-xs font-bold text-slate-800 dark:text-slate-200 mt-4 mb-2">
+          <h3 key={idx} style={{ fontSize: "14px", fontWeight: 600, color: "#E2E8F0", marginBottom: "8px", marginTop: "12px" }}>
             {trimmed.replace(/^###\s+/, "")}
           </h3>
         );
       } else if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
         const items = trimmed.split("\n").map(i => i.replace(/^[-*]\s+/, ""));
         return (
-          <ul key={idx} className="list-disc pl-5 space-y-1.5 text-xs text-slate-600 dark:text-slate-350 mb-4">
+          <ul key={idx} style={{ paddingLeft: "20px", marginBottom: "16px", listStyleType: "disc" }}>
             {items.map((it, iIdx) => (
-              <li key={iIdx} dangerouslySetInnerHTML={{ __html: formatInlineMarkdown(it) }} />
+              <li key={iIdx} style={{ fontSize: "14px", fontWeight: 400, color: "#CBD5E1", lineHeight: 1.7, marginBottom: "4px" }} dangerouslySetInnerHTML={{ __html: formatInlineMarkdown(it) }} />
             ))}
           </ul>
         );
-      } else if (/^\d+\.\s+/.test(trimmed)) {
-        const items = trimmed.split("\n").map(i => i.replace(/^\d+\.\s+/, ""));
-        return (
-          <ol key={idx} className="list-decimal pl-5 space-y-1.5 text-xs text-slate-600 dark:text-slate-350 mb-4">
-            {items.map((it, iIdx) => (
-              <li key={iIdx} dangerouslySetInnerHTML={{ __html: formatInlineMarkdown(it) }} />
-            ))}
-          </ol>
-        );
       } else {
         return (
-          <p key={idx} className="text-xs text-slate-600 dark:text-slate-350 leading-relaxed mb-4" dangerouslySetInnerHTML={{ __html: formatInlineMarkdown(trimmed) }} />
+          <p key={idx} style={{ fontSize: "14px", fontWeight: 400, color: "#CBD5E1", lineHeight: 1.7, marginBottom: "16px", wordBreak: "break-word" }} dangerouslySetInnerHTML={{ __html: formatInlineMarkdown(trimmed) }} />
         );
       }
     });
@@ -102,148 +97,165 @@ export default function GeneratedContentCard({
 
   const formatInlineMarkdown = (text: string) => {
     return text
-      .replace(/\*\*(.*?)\*\*/g, '<strong class="text-slate-950 dark:text-white font-semibold">$1</strong>')
+      .replace(/\*\*(.*?)\*\*/g, '<strong style="color: #FFFFFF; font-weight: 600;">$1</strong>')
       .replace(/\*(.*?)\*/g, '<em>$1</em>')
-      .replace(/`([^`]+)`/g, '<code class="rounded bg-slate-100 dark:bg-slate-800 px-1 py-0.5 font-mono text-3xs">$1</code>');
+      .replace(/`([^`]+)`/g, '<code style="background: #2D3748; padding: 2px 6px; borderRadius: 4px; font-family: monospace; font-size: 12px; color: #E2E8F0;">$1</code>');
   };
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-xs dark:border-slate-800 dark:bg-slate-900/60 transition-all duration-300">
-      
-      {/* Visual background accents for high-end feel */}
-      <div className="absolute top-0 right-0 h-40 w-40 rounded-full bg-indigo-500/5 blur-3xl pointer-events-none" />
-      <div className="absolute bottom-0 left-0 h-40 w-40 rounded-full bg-emerald-500/5 blur-3xl pointer-events-none" />
+    <div
+      style={{
+        background: "#1A202C",
+        border: "1px solid #2D3748",
+        borderRadius: "8px",
+        padding: "20px",
+        width: "100%",
+      }}
+    >
+      {/* Card Header: Title & Copy Icon button */}
+      <div
+        className="flex items-center justify-between"
+        style={{
+          borderBottom: "1px solid #2D3748",
+          paddingBottom: "16px",
+          marginBottom: "16px",
+        }}
+      >
+        <div className="flex items-center gap-3">
+          <h4
+            style={{
+              fontSize: "14px",
+              fontWeight: 600,
+              color: "#E2E8F0",
+            }}
+          >
+            {displayTitle}
+          </h4>
 
-      {/* Card Header metadata */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4 dark:border-slate-800/80 mb-5">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center gap-1 rounded-md bg-indigo-50 px-2 py-1 text-3xs font-semibold text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-400">
-            <Sparkles className="h-2.5 w-2.5 animate-pulse" />
-            <span>{displayModel}</span>
+          <span
+            style={{
+              fontSize: "11px",
+              fontWeight: 500,
+              color: "#7C3AED",
+              background: "rgba(124, 58, 237, 0.1)",
+              padding: "2px 8px",
+              borderRadius: "4px",
+            }}
+          >
+            {displayModel}
           </span>
-          <span className="inline-flex items-center gap-1 rounded-md bg-slate-50 px-2 py-1 text-3xs font-semibold text-slate-600 dark:bg-slate-850 dark:text-slate-400">
-            Tone: <span className="text-slate-900 dark:text-slate-300 font-bold">{displayTone}</span>
-          </span>
-          {contentItem?.status && (
-            <span className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-3xs font-bold uppercase tracking-wider
-              ${isApproved 
-                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800" 
-                : isSaved 
-                ? "bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400 border border-blue-200 dark:border-blue-800"
-                : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400"
-              }
-            `}>
-              {contentItem.status}
-            </span>
-          )}
         </div>
 
-        <div className="flex items-center gap-3 text-3xs text-slate-400 dark:text-slate-500 font-medium">
-          <span className="flex items-center gap-1">
-            <Clock className="h-3 w-3" />
-            <span>{displayReadTime}</span>
-          </span>
-          <span className="h-3 w-px bg-slate-200 dark:bg-slate-800" />
-          <span className="flex items-center gap-1">
-            <FileText className="h-3 w-3" />
-            <span>{displayWordCount} words</span>
-          </span>
-        </div>
-      </div>
-
-      {/* Card Typography Content */}
-      <article className="prose prose-slate dark:prose-invert prose-xs max-w-none mb-6">
-        {renderFormattedContent(displayContent)}
-      </article>
-
-      {/* Action Footer */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-slate-100 pt-4 dark:border-slate-800/80">
-        
-        {/* Copy utility */}
+        {/* Copy button */}
         <button
           type="button"
           onClick={handleCopy}
-          className="flex w-full sm:w-auto items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-semibold text-slate-600 transition-all hover:bg-slate-50 hover:text-slate-900 active:scale-97 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+          aria-label="Copy output"
+          className="transition-colors duration-150 cursor-pointer"
+          style={{
+            background: "transparent",
+            border: "none",
+            color: copied ? "#10B981" : "#94A3B8",
+            display: "flex",
+            alignItems: "center",
+            gap: "4px",
+            fontSize: "12px"
+          }}
+          onMouseEnter={(e) => { if (!copied) e.currentTarget.style.color = "#7C3AED"; }}
+          onMouseLeave={(e) => { if (!copied) e.currentTarget.style.color = "#94A3B8"; }}
         >
-          {copied ? (
-            <>
-              <Check className="h-4 w-4 text-emerald-500 animate-bounce" />
-              <span className="text-emerald-600 dark:text-emerald-450 font-bold">Copied to Clipboard!</span>
-            </>
-          ) : (
-            <>
-              <Copy className="h-4 w-4" />
-              <span>Copy Response</span>
-            </>
-          )}
+          {copied ? <Check size={16} /> : <Copy size={16} />}
+          <span>{copied ? "Copied" : ""}</span>
         </button>
-
-        <div className="flex w-full sm:w-auto items-center gap-2">
-          {/* Save Action Button */}
-          {onSave && (
-            <button
-              type="button"
-              onClick={onSave}
-              disabled={isSaving || isSaved}
-              className="flex flex-1 sm:flex-initial items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-semibold text-slate-700 transition-all hover:bg-slate-100 hover:text-slate-900 disabled:opacity-70 disabled:cursor-not-allowed dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
-            >
-              {isSaving ? (
-                <>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  <span>Saving...</span>
-                </>
-              ) : isSaved ? (
-                <>
-                  <Check className="h-3.5 w-3.5 text-blue-500" />
-                  <span>Saved</span>
-                </>
-              ) : (
-                <>
-                  <Bookmark className="h-3.5 w-3.5 text-slate-500" />
-                  <span>Save Draft</span>
-                </>
-              )}
-            </button>
-          )}
-
-          {/* Approve & Automate action */}
-          <button
-            type="button"
-            onClick={onApprove}
-            disabled={isApproving || isApproved}
-            className="flex flex-1 sm:flex-initial items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 py-2.5 text-xs font-semibold text-white shadow-lg shadow-emerald-600/10 transition-all hover:bg-emerald-500 hover:scale-[1.01] hover:shadow-emerald-600/20 active:scale-98 disabled:opacity-75 disabled:cursor-not-allowed"
-          >
-            {isApproving ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span>Approving...</span>
-              </>
-            ) : isApproved ? (
-              <>
-                <CheckCircle2 className="h-4 w-4 text-white" />
-                <span>Approved & Automation Ready</span>
-              </>
-            ) : (
-              <>
-                <Send className="h-4 w-4" />
-                <span>Approve & Automate</span>
-              </>
-            )}
-          </button>
-        </div>
-
       </div>
 
-      {/* Success Automation Slide Banner */}
-      {isApproved && (
-        <div className="mt-4 rounded-xl bg-emerald-50 border border-emerald-100 p-3 text-center transition-all duration-300 dark:bg-emerald-950/80 dark:border-emerald-900/60 animate-slide-up">
-          <p className="text-2xs font-semibold text-emerald-800 dark:text-emerald-300 flex items-center justify-center gap-1.5">
-            <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-            Content approved. Automated campaign trigger queued for downstream AI workflow.
-          </p>
-        </div>
-      )}
+      {/* Content Metadata Bar */}
+      <div 
+        className="flex items-center gap-4 text-xs mb-4"
+        style={{ color: "#94A3B8", fontSize: "12px" }}
+      >
+        <span className="flex items-center gap-1">
+          <Clock className="h-3.5 w-3.5" />
+          <span>{displayReadTime}</span>
+        </span>
+        <span>•</span>
+        <span className="flex items-center gap-1">
+          <FileText className="h-3.5 w-3.5" />
+          <span>{displayWordCount} words</span>
+        </span>
+        <span>•</span>
+        <span className="flex items-center gap-1">
+          <Sparkles className="h-3.5 w-3.5 text-[#7C3AED]" />
+          <span>Tone: {displayTone}</span>
+        </span>
+      </div>
 
+      {/* Generated Content Body */}
+      <div
+        className="custom-scrollbar"
+        style={{
+          maxHeight: "450px",
+          overflowY: "auto",
+          paddingRight: "8px",
+        }}
+      >
+        {renderFormattedContent(displayContent)}
+      </div>
+
+      {/* Footer Buttons: Regenerate | Download | Copy All */}
+      <div
+        className="flex flex-wrap items-center gap-3"
+        style={{
+          marginTop: "16px",
+          borderTop: "1px solid #2D3748",
+          paddingTop: "16px",
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="btn-secondary flex items-center justify-center gap-2 rounded-lg font-medium"
+          style={{
+            height: "40px",
+            padding: "0 16px",
+            fontSize: "13px",
+            borderRadius: "8px",
+          }}
+        >
+          <RefreshCw className="h-4 w-4" />
+          <span>Regenerate</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={handleDownload}
+          className="btn-secondary flex items-center justify-center gap-2 rounded-lg font-medium"
+          style={{
+            height: "40px",
+            padding: "0 16px",
+            fontSize: "13px",
+            borderRadius: "8px",
+          }}
+        >
+          <Download className="h-4 w-4" />
+          <span>Download</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={handleCopy}
+          className="btn-secondary flex items-center justify-center gap-2 rounded-lg font-medium"
+          style={{
+            height: "40px",
+            padding: "0 16px",
+            fontSize: "13px",
+            borderRadius: "8px",
+          }}
+        >
+          {copied ? <Check className="h-4 w-4 text-[#10B981]" /> : <Copy className="h-4 w-4" />}
+          <span>{copied ? "Copied All!" : "Copy All"}</span>
+        </button>
+      </div>
     </div>
   );
 }
