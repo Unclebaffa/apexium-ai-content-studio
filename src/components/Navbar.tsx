@@ -67,7 +67,6 @@ export default function Navbar({ onToggleSidebar, isSidebarOpen }: NavbarProps) 
             aria-label={isSidebarOpen ? "Close sidebar" : "Open sidebar"}
             className="md:hidden"
             style={{
-              display:         "inline-flex",
               alignItems:      "center",
               justifyContent:  "center",
               width:           "36px",
@@ -84,7 +83,8 @@ export default function Navbar({ onToggleSidebar, isSidebarOpen }: NavbarProps) 
           </button>
 
           {/* Logo mark */}
-          <a
+          <img src="/apexium logo.png" width={"150px"} alt="Apexium AI Studio" />
+          {/* <a
             href="/"
             aria-label="Apexium AI home"
             style={{ display: "flex", alignItems: "center", gap: "12px", textDecoration: "none" }}
@@ -132,7 +132,7 @@ export default function Navbar({ onToggleSidebar, isSidebarOpen }: NavbarProps) 
             >
               Studio
             </span>
-          </a>
+          </a> */}
         </div>
 
         {/* ── CENTER: Title + tagline (hidden on small screens) ── */}

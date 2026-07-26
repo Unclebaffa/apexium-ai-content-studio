@@ -160,20 +160,21 @@ export default function ContentGeneratorForm({
       <form onSubmit={handleSubmit}>
         
         {/* ── FORM SECTION 1: Content Topic or Prompt ── */}
-        <div style={{ marginBottom: "32px" }}>
+        <div style={{ marginBottom: "32px", marginTop: "32px" }}>
           {/* Label + Char counter header */}
           <div 
             className="flex items-center justify-between"
             style={{ marginBottom: "8px" }}
           >
             <label
-              htmlFor="topic-input"
+              htmlFor="topic-input" 
               style={{
                 fontSize: "13px",
                 fontWeight: 600,
                 color: "#94A3B8",
                 letterSpacing: "0.4px",
                 textTransform: "uppercase"
+                
               }}
             >
               CONTENT TOPIC OR PROMPT
@@ -208,6 +209,7 @@ export default function ContentGeneratorForm({
               fontWeight: 400,
               color: "#E2E8F0",
               lineHeight: "1.6",
+              resize: "none"
             }}
           />
 

@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import path from "path";
+import { addHistoryItem } from "@/lib/store";
 
-// Helper to determine AI provider key based on model string
 function mapModelToProvider(modelName: string): "openai" | "gemini" | "claude" {
   const lower = modelName.toLowerCase();
   if (lower.includes("openai") || lower.includes("gpt")) return "openai";
@@ -9,12 +8,197 @@ function mapModelToProvider(modelName: string): "openai" | "gemini" | "claude" {
   return "gemini";
 }
 
+function cleanMarkdownBold(text: string): string {
+  if (!text) return "";
+  return text.replace(/\*\*/g, "");
+}
+
+function generateContextAwareFallback(topic: string, tone: string, model: string): string {
+  const lowerInput = topic.toLowerCase();
+  const lowerTone = (tone || "professional").toLowerCase();
+
+  // 1. Specific Request: LinkedIn Posts
+  if (lowerInput.includes("linkedin")) {
+    if (lowerTone === "conversational") {
+      return cleanMarkdownBold(`🚀 Web development is evolving faster than ever!
+
+If you are building modern websites or web apps, AI is changing the game. From writing boilerplate code to catching hidden bugs before they reach production, intelligent tools are giving developers super-powers.
+
+Here is what we are seeing across the industry:
+1. Faster Prototyping: Turn ideas into functional UI components in minutes instead of days.
+2. Smarter Debugging: Identify performance bottlenecks and logic flaws instantly.
+3. Automated Content & Workflows: Integrate AI assistants directly into user experiences.
+
+What AI tool has made the biggest difference in your daily workflow? Let us know in the comments!
+
+#WebDevelopment #ArtificialIntelligence #SoftwareEngineering #Apexium #TechTrends`);
+    }
+
+    if (lowerTone === "promotional") {
+      return cleanMarkdownBold(`🔥 Supercharge your digital transformation with Apexium AI Content Studio!
+
+Web development teams leveraging AI automation are delivering applications up to 5x faster while drastically improving code quality and user engagement.
+
+Key Advantages:
+- Accelerated Scaffolding: Turn complex UI mockups into production-ready React code instantly.
+- Intelligent Test Automation: Catch critical logic errors before they impact clients.
+- Multi-Model Intelligence: Harness Gemini, OpenAI GPT-4, and Claude within one unified workflow.
+
+Ready to elevate your engineering output? Partner with Apexium Technologies today! 🚀
+
+#WebDevelopment #AITechnologies #Apexium #DigitalTransformation #SoftwareArchitecture`);
+    }
+
+    if (lowerTone === "educational") {
+      return cleanMarkdownBold(`Understanding how Artificial Intelligence is transforming modern web development.
+
+As digital applications grow in complexity, AI tools are helping developers build faster, cleaner, and more secure software. Here is a breakdown of key developments:
+
+1. Code Assistance and Scaffolding
+AI tools analyze project context to suggest optimized code patterns, reducing manual repetitive typing.
+
+2. Automated Quality Assurance
+Intelligent test runners identify edge cases and performance bugs during continuous integration pipelines.
+
+3. Context-Aware Content Delivery
+Modern web applications integrate generative AI APIs directly to serve personalized user experiences.
+
+Understanding these shifts helps software teams stay competitive in an evolving tech landscape.
+
+#WebDevelopment #SoftwareEngineering #TechEducation #Apexium`);
+    }
+
+    // Default Professional LinkedIn
+    return cleanMarkdownBold(`Artificial Intelligence is fundamentally reshaping the landscape of modern web development.
+
+As enterprise digital experiences become increasingly dynamic, development teams leveraging AI automation are achieving superior operational efficiency, elevated code quality, and accelerated release velocity.
+
+Core Strategic Drivers:
+- Automated Code Generation: Streamlining legacy boilerplate setup and component architecture.
+- Accelerated Quality Assurance: Identifying edge-case vulnerabilities prior to deployment.
+- Context-Aware User Interfaces: Delivering dynamic intelligence directly within client applications.
+
+At Apexium Technologies, we build enterprise-grade web solutions powered by state-of-the-art AI infrastructure.
+
+How is your organization integrating AI into your technology roadmap?
+
+#WebDevelopment #AITechnologies #EnterpriseSoftware #Apexium #SoftwareArchitecture`);
+  }
+
+  // 2. Specific Request: Instagram Captions
+  if (lowerInput.includes("instagram") || lowerInput.includes("caption")) {
+    if (lowerTone === "professional") {
+      return cleanMarkdownBold(`Apexium Technologies unveils the enterprise AI Content Studio. Streamline internal content drafting, multi-model execution, and automated publishing pipelines seamlessly.
+
+Learn more about our enterprise platform at apexium.com
+
+#Apexium #AIContentStudio #EnterpriseSoftware #Technology`);
+    }
+
+    if (lowerTone === "educational") {
+      return cleanMarkdownBold(`Did you know you can manage Google Gemini, OpenAI, and Claude inside a single platform? 🧠💡
+
+Apexium AI Content Studio breaks down content creation into simple steps:
+1. Select your topic
+2. Choose your tone
+3. Pick your AI engine
+4. Save and automate!
+
+Swipe up or check the link in our bio to see how it works! 📲
+
+#TechTips #AIContentStudio #Apexium #SoftwareGuide`);
+    }
+
+    if (lowerTone === "conversational") {
+      return cleanMarkdownBold(`Hey everyone! 👋 We're super excited to share what we've been building at Apexium!
+
+Our new AI Content Studio makes drafting social posts, emails, and articles feel totally effortless. No more staring at a blank screen!
+
+Have you tried using AI for your daily content yet? Let us know in the comments! 👇
+
+#Apexium #AIStudio #ContentCreator #TechCommunity`);
+    }
+
+    // Default Promotional Instagram
+    return cleanMarkdownBold(`✨ Elevate your digital content with Apexium's new AI services! 🚀
+
+Say goodbye to manual content bottlenecks. Our AI Content Studio empowers teams to draft, refine, and automate high-performing social posts, blog content, and emails in seconds.
+
+Targeted Tone Options
+Multi-Model Intelligence (Gemini, OpenAI, Claude)
+Automated Publishing Pipelines
+
+Ready to transform how your brand creates content? Tap the link in our bio to learn more! 💡
+
+#Apexium #AIContentStudio #ContentAutomation #WebDev #MarketingTech #TechInnovation`);
+  }
+
+  // 3. General Prompt Handling across all 4 Tones (e.g. "Explain why businesses should adopt AI automation", "Why use AI", etc.)
+
+  if (lowerTone === "professional") {
+    return cleanMarkdownBold(`Executive Summary: The Strategic Imperative of AI Automation
+
+In today's competitive enterprise landscape, adopting AI automation is a key driver of operational excellence and sustainable growth. Organizations implementing intelligent workflow automation experience measurable improvements across performance, consistency, and resource efficiency.
+
+Strategic Business Drivers:
+1. Operational Velocity and Throughput: Automating routine data processing and content generation accelerates cycle times from hours to seconds, allowing business units to execute with unprecedented agility.
+2. Optimizing Human Capital: By delegating repetitive, manual processes to intelligent automation layers, high-value personnel can focus on strategic initiatives, innovation, and client relationships.
+3. Enterprise Scalability and Consistency: Automated workflows execute with deterministic accuracy, reducing compliance risk and maintaining quality standards during periods of rapid transaction growth.
+
+Conclusion:
+Incorporating AI automation into enterprise operations establishes a resilient foundation for long-term operational advantage at Apexium Technologies.`);
+  }
+
+  if (lowerTone === "educational") {
+    return cleanMarkdownBold(`A Simple Guide to AI Automation for Businesses
+
+Imagine having an intelligent assistant that works alongside your team 24/7—handling data entry, drafting communications, and organizing workflows automatically. That is the core idea behind AI automation.
+
+How AI Automation Helps Businesses:
+- Step 1: Handling Routine Tasks
+Instead of team members manually typing reports or sorting records every day, smart software handles these repetitive steps instantly.
+
+- Step 2: Learning and Adapting
+Unlike basic tools that only follow simple rule-based commands, modern AI understands context—meaning it can draft tailored emails, summarize documents, and catch errors automatically.
+
+- Step 3: Freeing Up Brainpower
+When routine work is automated, your team can focus on creative problem solving, strategic planning, and building genuine customer relationships.
+
+Key Takeaway:
+AI automation is not about replacing human ingenuity; it is about providing software tools that make your work faster, easier, and much more impactful.`);
+  }
+
+  if (lowerTone === "promotional") {
+    return cleanMarkdownBold(`Supercharge Your Business Output with AI Automation 🚀
+
+Ready to gain a game-changing competitive edge in today's fast-moving market? Businesses that embrace AI automation are scaling up to 5x faster while cutting operational overhead in half!
+
+Why Modern Businesses Cannot Afford to Wait:
+⚡ Unmatched Speed: Deliver projects, campaigns, and reports in minutes instead of days.
+🎯 Maximize Revenue Potential: Empower your team to focus on closing deals and delighting customers while AI handles the heavy lifting.
+🛡️ Zero Friction Scaling: Expand your service offerings effortlessly without exploding operational costs.
+
+Don't let manual bottlenecks slow your brand down. Experience the future of intelligent workflow automation with Apexium Technologies today!`);
+  }
+
+  // Default: Conversational
+  return cleanMarkdownBold(`Let's talk about why so many businesses are making the leap to AI automation 👋
+
+If you've ever felt like your workday gets swallowed up by tedious paperwork, copy-pasting data, or drafting the same emails over and over, you're not alone. That's exactly where AI automation steps in to save the day.
+
+Here's what it actually feels like when a team starts using AI automation:
+- You get hours of your week back: Suddenly, routine tasks just happen smoothly in the background.
+- Fewer head-scratching mistakes: Smart tools catch the little typos and data glitches before they turn into headache problems.
+- Your team stays energized: Everyone gets to focus on what they actually enjoy doing—creative work, big ideas, and connecting with real people.
+
+At the end of the day, AI automation is really just about giving you and your team room to breathe and innovate. Have you tried using AI tools in your daily routine yet?`);
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { topic, tone, model } = body;
 
-    // Validation
     if (!topic || typeof topic !== "string" || !topic.trim()) {
       return NextResponse.json(
         { success: false, error: "Content topic or prompt is required." },
@@ -23,120 +207,47 @@ export async function POST(request: Request) {
     }
 
     const selectedTone = tone || "Professional";
-    const selectedModel = model || "Google Gemini 1.5 Pro";
-
+    const selectedModel = model || "Gemini 1.5 Pro";
     const title = topic.length > 50 ? `${topic.slice(0, 47)}...` : topic;
     const timestamp = new Date().toISOString();
     const id = `gen-${Date.now()}`;
 
     let generatedText = "";
-    let providerUsed = mapModelToProvider(selectedModel);
+    const providerUsed = mapModelToProvider(selectedModel);
     let isLiveAiGenerated = false;
 
-    // Attempt live AI provider generation if API key exists in environment
-    const hasAiKey = process.env.OPENAI_API_KEY || process.env.GEMINI_API_KEY || process.env.ANTHROPIC_API_KEY;
+    const hasAiKey =
+      process.env.OPENAI_API_KEY ||
+      process.env.GEMINI_API_KEY ||
+      process.env.ANTHROPIC_API_KEY;
 
     if (hasAiKey) {
       try {
-        const modelSwitcherPath = path.resolve(process.cwd(), "modelSwitcher.js");
-        // Dynamically require modelSwitcher module
         // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const { generateContent } = require(modelSwitcherPath);
+        const { generateContent } = require("../../../../modelSwitcher");
         const aiResponse = await generateContent({
           provider: providerUsed,
-          contentType: "blog_intro",
-          tone: selectedTone.toLowerCase(),
+          contentType: "general",
+          tone: selectedTone,
           topic: topic.trim(),
         });
         if (aiResponse && aiResponse.text) {
-          generatedText = aiResponse.text;
+          generatedText = cleanMarkdownBold(aiResponse.text);
           isLiveAiGenerated = true;
         }
       } catch (aiErr) {
-        console.warn("AI Provider call failed, utilizing domain content fallback:", aiErr);
+        console.warn("AI Provider call failed, using context-aware fallback:", aiErr);
       }
     }
 
-    // Fallback structured content generator (if no live API key or provider fails)
     if (!generatedText) {
-      if (selectedTone.toLowerCase() === "educational") {
-        generatedText = `## Comprehensive Guide: ${title}
-
-Understanding the core mechanics of **${topic}** requires breaking down key structural components and technical methodologies.
-
-### 1. Architectural Foundations
-When dealing with ${topic.toLowerCase()}, engineering teams must establish robust baseline parameters. Standard industry approaches highlight:
-- **System Modularity:** Decoupling underlying execution logic from client interface layers.
-- **Resource Optimization:** Allocating dynamic computing resources to minimize runtime latency.
-- **Observability & Analytics:** Monitoring telemetry and real-time state metrics continuously.
-
-### 2. Implementation Methodology (${selectedModel})
-By leveraging advanced capabilities of **${selectedModel}**, teams achieve high accuracy and deterministic throughput:
-1. **Input Normalization:** Pre-processing telemetry vectors before execution.
-2. **Context Enrichment:** Injecting relevant domain knowledge dynamically.
-3. **Output Validation:** Ensuring structural integrity before final deployment.
-
-### 3. Summary & Best Practices
-Adopting this structured approach ensures scalability, maintainability, and high reliability across production environments.`;
-      } else if (selectedTone.toLowerCase() === "promotional") {
-        generatedText = `## Launching the Next Generation of ${title}! 🚀
-
-We are thrilled to announce a major breakthrough in **${topic}**! Designed for forward-thinking organizations, this solution redefines efficiency, speed, and intelligence.
-
-### Why ${topic} Matters Now
-In today's fast-moving market, static tools can no longer keep up. Key features include:
-- ⚡ **Blazing Fast Performance:** Process complex requests in milliseconds.
-- 🎯 **Tailored Precision:** Engineered using state-of-the-art ${selectedModel} intelligence.
-- 🛡️ **Enterprise Security:** Built with bank-grade encryption and compliance standards.
-
-### Real Impact & Results
-Teams adopting this platform report up to **45% increase in operational output** and a **60% reduction in workflow bottlenecks**.
-
-**Ready to transform your content workflow?** Experience the power of Apexium AI Content Studio today!`;
-      } else if (selectedTone.toLowerCase() === "conversational") {
-        generatedText = `## Let's Talk About: ${title} 👋
-
-Ever wondered how **${topic}** is changing the way we build modern digital products? Let's dive into what's actually happening behind the scenes.
-
-### The Big Picture
-Whether you are a developer, designer, or product manager, dealing with ${topic.toLowerCase()} can sometimes feel overwhelming. But here's the good news:
-- It doesn't have to be complicated!
-- Break it down into small, digestible steps.
-- Focus on practical, real-world utility over hype.
-
-### What We Learned using ${selectedModel}
-Working with **${selectedModel}**, we noticed how natural and fluent responses become when you match the right prompt tone with the right AI engine.
-
-> *"Simplicity is the ultimate sophistication when crafting content for modern audiences."*
-
-Give it a try and share your feedback with our team!`;
-      } else {
-        // Default: Professional
-        generatedText = `## Strategic Analysis: ${title}
-
-In modern enterprise operations, implementing robust strategies for **${topic}** has become a critical operational imperative. This report analyzes key considerations, deployment models, and expected business outcomes.
-
-### Executive Overview & Bottlenecks
-Organizations evaluating ${topic.toLowerCase()} typically encounter three distinct operational challenges:
-1. **Integration Latency:** Aligning legacy API interfaces with modern asynchronous execution pipelines.
-2. **Data Governance:** Enforcing strict access controls and compliance parameters.
-3. **Scalability Constraints:** Managing dynamic workloads during peak transaction volumes.
-
-### Recommended Strategy (${selectedModel})
-Utilizing **${selectedModel}** with a **${selectedTone}** tone framework enables seamless content automation:
-- **Pre-processing:** Validate and format incoming telemetry data.
-- **Automated Workflow:** Trigger downstream business workflows upon verified content approval.
-- **Audit Traceability:** Maintain complete history logs of generated assets.
-
-### Expected Business Outcomes
-Deploying this architecture at Apexium Technologies delivers measurable improvements:
-- **Operational Cost Reduction:** Up to 40% bandwidth and processing efficiency.
-- **Workflow Velocity:** Accelerating content turnaround from days to seconds.`;
-      }
+      generatedText = generateContextAwareFallback(topic.trim(), selectedTone, selectedModel);
     }
 
-    // Calculate word count & reading time
-    const words = generatedText.trim().split(/\s+/).length;
+    // Ensure final text is completely stripped of any ** bold markers
+    generatedText = cleanMarkdownBold(generatedText);
+
+    const words = generatedText.trim().split(/\s+/).filter(Boolean).length;
     const readTimeMinutes = Math.max(1, Math.ceil(words / 200));
 
     const resultData = {
@@ -150,21 +261,29 @@ Deploying this architecture at Apexium Technologies delivers measurable improvem
       wordCount: words,
       readTime: `~${readTimeMinutes} min read`,
       createdAt: timestamp,
-      status: "Draft",
+      status: "Draft" as const,
       saved: false,
-      isLiveAiGenerated
+      isLiveAiGenerated,
     };
 
-    return NextResponse.json({
-      success: true,
-      data: resultData
+    addHistoryItem({
+      id,
+      title,
+      topic,
+      tone: selectedTone,
+      model: selectedModel,
+      provider: providerUsed,
+      date: "Just now",
+      content: generatedText,
+      wordCount: words,
+      readTime: `~${readTimeMinutes} min read`,
+      status: "Draft",
+      createdAt: timestamp,
     });
 
+    return NextResponse.json({ success: true, data: resultData });
   } catch (error: unknown) {
     const errMessage = error instanceof Error ? error.message : "An unexpected server error occurred.";
-    return NextResponse.json(
-      { success: false, error: errMessage },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: errMessage }, { status: 500 });
   }
 }
