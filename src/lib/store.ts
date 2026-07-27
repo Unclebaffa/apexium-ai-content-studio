@@ -64,7 +64,10 @@ const INITIAL_HISTORY: ContentHistoryItem[] = [
   },
 ];
 
-const STORE_FILE = path.resolve(process.cwd(), ".content_history.json");
+const STORE_FILE =
+  process.env.VERCEL || process.env.NODE_ENV === "production"
+    ? path.join("/tmp", ".content_history.json")
+    : path.resolve(process.cwd(), ".content_history.json");
 
 function loadStore(): ContentHistoryItem[] {
   try {
