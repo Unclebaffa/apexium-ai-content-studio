@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 import { addHistoryItem } from "@/lib/store";
+import { generateContent } from "@/lib/modelSwitcher";
+
+export const dynamic = "force-dynamic";
 
 function mapModelToProvider(modelName: string): "openai" | "gemini" | "claude" {
   const lower = modelName.toLowerCase();
@@ -223,8 +226,6 @@ export async function POST(request: Request) {
 
     if (hasAiKey) {
       try {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const { generateContent } = require("../../../../modelSwitcher");
         const aiResponse = await generateContent({
           provider: providerUsed,
           contentType: "general",
