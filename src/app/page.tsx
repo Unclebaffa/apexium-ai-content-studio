@@ -6,7 +6,7 @@ import Sidebar from "@/components/Sidebar";
 import ContentGeneratorForm from "@/components/ContentGeneratorForm";
 import ContentPreview from "@/components/ContentPreview";
 import { GeneratedContentItem } from "@/components/GeneratedContentCard";
-import { Play, Sparkles, RefreshCw, AlertTriangle } from "lucide-react";
+import { Sparkles, Play, AlertTriangle, RefreshCw } from "lucide-react";
 
 export default function Home() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -17,11 +17,13 @@ export default function Home() {
   const [hasOutput, setHasOutput] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [generatedContent, setGeneratedContent] = useState<GeneratedContentItem | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [contentHistory, setContentHistory] = useState<any[]>([]);
   const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("playground");
   const [generationMeta, setGenerationMeta] = useState({
     tone: "Professional",
-    model: "Google Gemini 1.5 Pro",
+    model: "Gemini 1.5 Pro",
   });
 
   // Fetch initial content history on mount
@@ -48,10 +50,7 @@ export default function Home() {
     setHasOutput(false);
     setErrorMessage("");
     setSelectedHistoryId(null);
-    setGenerationMeta({
-      tone: data.tone,
-      model: data.model,
-    });
+    setGenerationMeta({ tone: data.tone, model: data.model });
 
     try {
       const response = await fetch("/api/generate", {
@@ -70,21 +69,8 @@ export default function Home() {
       setGeneratedContent(newItem);
       setHasOutput(true);
 
-      // Prepend to history list in frontend state
-      const historyItem = {
-        id: newItem.id || `hist-${Date.now()}`,
-        title: newItem.topic ? (newItem.topic.length > 45 ? `${newItem.topic.slice(0, 45)}...` : newItem.topic) : "Generated Content",
-        topic: newItem.topic,
-        tone: newItem.tone || data.tone,
-        model: newItem.model || data.model,
-        date: "Just now",
-        content: newItem.content,
-        wordCount: newItem.wordCount,
-        readTime: newItem.readTime,
-        status: newItem.status || "Draft"
-      };
-
-      setContentHistory(prev => [historyItem, ...prev]);
+      // Refresh sidebar history from server
+      await fetchHistory();
     } catch (err: unknown) {
       const errorText = err instanceof Error ? err.message : "Failed to connect to AI engine.";
       setErrorMessage(errorText);
@@ -95,7 +81,6 @@ export default function Home() {
 
   const handleSaveContent = async () => {
     if (!generatedContent) return;
-
     setIsSaving(true);
     try {
       const response = await fetch("/api/save", {
@@ -107,26 +92,17 @@ export default function Home() {
           tone: generatedContent.tone,
           model: generatedContent.model,
           content: generatedContent.content,
+          title: generatedContent.title,
         }),
       });
 
       const result = await response.json();
-      if (!response.ok || !result.success) {
-        throw new Error(result.error || "Failed to save content.");
-      }
+      if (!response.ok || !result.success) throw new Error(result.error || "Failed to save content.");
 
-      // Update generated content status
       setGeneratedContent(prev => prev ? { ...prev, status: "Saved", saved: true } : null);
-
-      // Update history entry status
-      if (generatedContent.id) {
-        setContentHistory(prev =>
-          prev.map(item => item.id === generatedContent.id ? { ...item, status: "Saved" } : item)
-        );
-      }
+      await fetchHistory();
     } catch (err: unknown) {
-      const errorText = err instanceof Error ? err.message : "Save request failed.";
-      setErrorMessage(errorText);
+      setErrorMessage(err instanceof Error ? err.message : "Save request failed.");
     } finally {
       setIsSaving(false);
     }
@@ -134,7 +110,6 @@ export default function Home() {
 
   const handleApproveContent = async () => {
     if (!generatedContent) return;
-
     setIsApproving(true);
     try {
       const response = await fetch("/api/approve", {
@@ -146,26 +121,22 @@ export default function Home() {
           tone: generatedContent.tone,
           model: generatedContent.model,
           content: generatedContent.content,
+          title: generatedContent.title,
         }),
       });
 
       const result = await response.json();
-      if (!response.ok || !result.success) {
-        throw new Error(result.error || "Approval request failed.");
-      }
+      if (!response.ok || !result.success) throw new Error(result.error || "Approval request failed.");
 
-      // Update generated content status
-      setGeneratedContent(prev => prev ? { ...prev, status: "Approved" } : null);
-
-      // Update history entry status
-      if (generatedContent.id) {
-        setContentHistory(prev =>
-          prev.map(item => item.id === generatedContent.id ? { ...item, status: "Approved" } : item)
-        );
-      }
+      const appData = result.data;
+      setGeneratedContent(prev => prev ? {
+        ...prev,
+        status: "Approved",
+        automationMessage: appData?.automationMessage || "Content approved. Automation trigger sent.",
+      } : null);
+      await fetchHistory();
     } catch (err: unknown) {
-      const errorText = err instanceof Error ? err.message : "Approval request failed.";
-      setErrorMessage(errorText);
+      setErrorMessage(err instanceof Error ? err.message : "Approval request failed.");
     } finally {
       setIsApproving(false);
     }
@@ -175,10 +146,7 @@ export default function Home() {
     setSelectedHistoryId(item.id || null);
     setGeneratedContent(item);
     setTopic(item.topic || "");
-    setGenerationMeta({
-      tone: item.tone || "Professional",
-      model: item.model || "Google Gemini 1.5 Pro"
-    });
+    setGenerationMeta({ tone: item.tone || "Professional", model: item.model || "Gemini 1.5 Pro" });
     setHasOutput(true);
     setErrorMessage("");
   };
@@ -201,7 +169,7 @@ export default function Home() {
     }
   };
 
-  // State-toggle helpers for design review demonstrations
+  // Demo UX state triggers (dev tool bar)
   const setDemoSuccess = () => {
     setIsGenerating(false);
     setHasOutput(true);
@@ -209,12 +177,12 @@ export default function Home() {
     if (!generatedContent) {
       setGeneratedContent({
         id: "demo-1",
-        title: "Overcoming Latency: Edge Computing for Industrial IoT (IIoT)",
-        topic: "Overcoming Latency: Edge Computing for Industrial IoT (IIoT)",
+        title: "Understanding Quantum Computing Basics",
+        topic: "Understanding Quantum Computing Basics",
         tone: generationMeta.tone,
         model: generationMeta.model,
         status: "Draft",
-        content: `## Overcoming Latency: Edge Computing for Industrial IoT (IIoT)\n\nIn modern smart manufacturing, microseconds dictate success. As industrial plants deploy thousands of high-fidelity sensors measuring pressure, vibration, and temperature, transmitting this massive stream of telemetry to a centralized cloud introduces severe bottlenecks. This is where **Edge Computing** shifts the paradigm.\n\n### The Problem: Cloud Backhaul Overload\nHistorically, IoT architectures pushed all telemetry to central databases. Under this model, operators encounter:\n1. **Network Congestion:** High bandwidth consumption choking local gateways.\n2. **Jitter & Latency:** Multi-second roundtrips preventing real-time control loops.\n3. **Connectivity Dependency:** If connection drops, safety critical shutdown metrics fail.\n\n### The Solution: Deploying Intelligence at the Edge\nBy positioning edge gateways (powered by lightweight runtimes) directly on the factory floor, companies preprocess telemetry locally:\n- **Anomaly Detection:** Machine learning inference identifies machine wear within 5ms.\n- **Data Aggregation:** Filter out normal telemetry, transmitting only critical state changes.\n- **Fail-safe Autonomy:** Local controllers maintain operations even during internet blackouts.\n\n### Key Business Outcomes\nImplementing this edge architecture at **Apexium Technologies** resulted in a **45% reduction** in network operational costs and improved hardware failure response times by **82%**.`
+        content: `## Understanding Quantum Computing Basics\n\nQuantum computing represents a fundamental shift in how we process information. Unlike classical computers that rely on binary bits (0 or 1), quantum computers leverage quantum bits or **qubits**.\n\n### Core Quantum Principles\n1. **Superposition:** Allows qubits to exist in multiple states simultaneously, exponentially scaling computational power.\n2. **Entanglement:** Interlinks qubits such that the state of one instantly influences another, enabling complex parallel logic.\n3. **Quantum Interference:** Amplifies correct analytical paths while canceling wrong solutions.`,
       });
     }
   };
@@ -228,117 +196,144 @@ export default function Home() {
   const setDemoError = () => {
     setIsGenerating(false);
     setHasOutput(false);
-    setErrorMessage("Unable to connect to AI service. Please check your network connection and try again.");
-  };
-
-  const resetWorkspace = () => {
-    handleNewSession();
+    setErrorMessage("Unable to connect to AI engine. Please check network connection.");
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50 text-slate-900 transition-colors duration-300 dark:bg-slate-900 dark:text-slate-100">
-      <Navbar 
-        onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} 
-        isSidebarOpen={isSidebarOpen} 
+    <div className="flex min-h-screen flex-col bg-[#0F172A] text-[#CBD5E1]">
+      {/* ── Navbar ── */}
+      <Navbar
+        onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+        isSidebarOpen={isSidebarOpen}
       />
-      
-      <div className="flex flex-1 relative">
-        <Sidebar 
-          isOpen={isSidebarOpen} 
-          onClose={() => setIsSidebarOpen(false)} 
+
+      {/* ── Main Layout ── */}
+      <div className="flex flex-1 relative min-h-[calc(100vh-64px)]">
+
+        {/* ── Sidebar (Left Panel) ── */}
+        <Sidebar
+          isOpen={isSidebarOpen}
+          onClose={() => setIsSidebarOpen(false)}
           history={contentHistory}
           activeHistoryId={selectedHistoryId}
           onSelectHistoryItem={handleSelectHistoryItem}
           onNewSession={handleNewSession}
           onClearHistory={handleClearHistory}
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
         />
-        
-        {/* Main Content Area Container */}
-        <main className="flex-1 px-4 py-8 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full overflow-y-auto">
-          
-          {/* Header section with page title & State controls */}
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
-            <div>
-              <h1 className="text-xl font-bold tracking-tight text-slate-950 dark:text-white sm:text-2xl">
-                AI Content Studio
-              </h1>
-              <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
-                Draft and generate social media copies, press releases, blog drafts, and emails with enterprise-grade models.
-              </p>
+
+        {/* ── Center + Right Panels ── */}
+        <div className="flex flex-1 flex-col lg:flex-row w-full">
+
+          {/* ── Center Panel: Generator Form ── */}
+          <main
+            className="flex-1 w-full overflow-y-auto"
+            style={{ background: "#0F172A", padding: "40px", maxWidth: "800px" }}
+          >
+            {/* Page header */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-[40px]">
+              <div>
+                <h1
+                  style={{
+                    fontSize: "28px",
+                    fontWeight: 700,
+                    color: "#FFFFFF",
+                    letterSpacing: "-0.5px",
+                    lineHeight: 1.2,
+                    marginBottom: "12px",
+                  }}
+                >
+                  AI Content Studio
+                </h1>
+                <p
+                  style={{
+                    fontSize: "15px",
+                    fontWeight: 400,
+                    color: "#CBD5E1",
+                    lineHeight: 1.6,
+                    maxWidth: "600px",
+                  }}
+                >
+                  Draft and generate social media copies, press releases, blog drafts, and emails
+                  with enterprise-grade models.
+                </p>
+              </div>
+
+              {/* Dev UX state toolbar */}
+              <div
+                className="flex items-center gap-3 shrink-0 self-start sm:self-center"
+                style={{ border: "1px solid #2D3748", padding: "6px 12px", borderRadius: "6px" }}
+              >
+                <button
+                  type="button"
+                  onClick={setDemoSuccess}
+                  className="flex items-center gap-1.5 cursor-pointer"
+                  style={{ fontSize: "11px", fontWeight: 500, color: "#10B981", background: "transparent", border: "none" }}
+                >
+                  <Sparkles className="h-3 w-3" />
+                  <span>Success</span>
+                </button>
+                <span style={{ color: "#2D3748" }}>|</span>
+                <button
+                  type="button"
+                  onClick={setDemoLoading}
+                  className="flex items-center gap-1.5 cursor-pointer"
+                  style={{ fontSize: "11px", fontWeight: 500, color: "#3B82F6", background: "transparent", border: "none" }}
+                >
+                  <Play className="h-3 w-3" />
+                  <span>Loading</span>
+                </button>
+                <span style={{ color: "#2D3748" }}>|</span>
+                <button
+                  type="button"
+                  onClick={setDemoError}
+                  className="flex items-center gap-1.5 cursor-pointer"
+                  style={{ fontSize: "11px", fontWeight: 500, color: "#EF4444", background: "transparent", border: "none" }}
+                >
+                  <AlertTriangle className="h-3 w-3" />
+                  <span>Error</span>
+                </button>
+                <span style={{ color: "#2D3748" }}>|</span>
+                <button
+                  type="button"
+                  onClick={handleNewSession}
+                  className="flex items-center gap-1.5 cursor-pointer"
+                  style={{ fontSize: "11px", fontWeight: 500, color: "#A0AEC0", background: "transparent", border: "none" }}
+                >
+                  <RefreshCw className="h-3 w-3" />
+                  <span>Reset</span>
+                </button>
+              </div>
             </div>
 
-            {/* Premium UX Design Review State Panel */}
-            <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white p-2.5 shadow-2xs dark:border-slate-800 dark:bg-slate-950">
-              <span className="px-2 text-3xs font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                UX States:
-              </span>
-              
-              <button
-                type="button"
-                onClick={setDemoSuccess}
-                className="flex items-center gap-1 rounded-lg px-2 py-1 text-3xs font-bold text-slate-600 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-900"
-              >
-                <Sparkles className="h-3 w-3 text-indigo-500" />
-                <span>Success</span>
-              </button>
+            <ContentGeneratorForm
+              onSubmit={handleGenerate}
+              isLoading={isGenerating}
+              errorMessage={errorMessage}
+              onDismissError={() => setErrorMessage("")}
+              topicValue={topic}
+              onTopicChange={setTopic}
+            />
+          </main>
 
-              <button
-                type="button"
-                onClick={setDemoLoading}
-                className="flex items-center gap-1 rounded-lg px-2 py-1 text-3xs font-bold text-slate-600 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-900"
-              >
-                <Play className="h-3 w-3 text-amber-500" />
-                <span>Loading</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={setDemoError}
-                className="flex items-center gap-1 rounded-lg px-2 py-1 text-3xs font-bold text-slate-600 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-900"
-              >
-                <AlertTriangle className="h-3 w-3 text-rose-500" />
-                <span>Error</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={resetWorkspace}
-                className="flex items-center gap-1 rounded-lg px-2 py-1 text-3xs font-bold text-slate-600 hover:bg-slate-55 dark:text-slate-400 dark:hover:bg-slate-900 border-l border-slate-100 dark:border-slate-850 pl-2"
-              >
-                <RefreshCw className="h-3 w-3 text-slate-400" />
-                <span>Reset</span>
-              </button>
-            </div>
+          {/* ── Right Panel: Content Preview & Actions ── */}
+          <div className="flex-1 lg:max-w-md xl:max-w-lg w-full">
+            <ContentPreview
+              isLoading={isGenerating}
+              hasOutput={hasOutput}
+              contentItem={generatedContent}
+              tone={generationMeta.tone}
+              model={generationMeta.model}
+              isSaving={isSaving}
+              isApproving={isApproving}
+              onSave={handleSaveContent}
+              onApprove={handleApproveContent}
+              onCancel={() => setIsGenerating(false)}
+            />
           </div>
-          
-          {/* Main workspace layout: Form on left/top, preview on right/bottom */}
-          <div className="grid grid-cols-1 gap-8 lg:grid-cols-12 items-start">
-            <div className="lg:col-span-6 xl:col-span-5">
-              <ContentGeneratorForm 
-                onSubmit={handleGenerate} 
-                isLoading={isGenerating} 
-                errorMessage={errorMessage}
-                onDismissError={() => setErrorMessage("")}
-                topicValue={topic}
-                onTopicChange={setTopic}
-              />
-            </div>
-            
-            <div className="lg:col-span-6 xl:col-span-7 h-full">
-              <ContentPreview 
-                isLoading={isGenerating} 
-                hasOutput={hasOutput}
-                contentItem={generatedContent}
-                tone={generationMeta.tone}
-                model={generationMeta.model}
-                isSaving={isSaving}
-                isApproving={isApproving}
-                onSave={handleSaveContent}
-                onApprove={handleApproveContent}
-              />
-            </div>
-          </div>
-        </main>
+
+        </div>
       </div>
     </div>
   );

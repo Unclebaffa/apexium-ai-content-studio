@@ -5,10 +5,6 @@ import {
   Sparkles, 
   ChevronDown, 
   Check, 
-  Briefcase, 
-  BookOpen, 
-  Megaphone, 
-  MessageSquare, 
   Loader2, 
   Zap, 
   Brain 
@@ -30,62 +26,45 @@ const TONES = [
     id: "professional",
     name: "Professional",
     description: "Polished, formal, and corporate communications",
-    icon: Briefcase,
-    color: "text-blue-600 dark:text-blue-400"
   },
   {
     id: "educational",
     name: "Educational",
     description: "Informative, explanatory, and detail-oriented",
-    icon: BookOpen,
-    color: "text-emerald-600 dark:text-emerald-400"
   },
   {
     id: "promotional",
     name: "Promotional",
     description: "Persuasive, engaging, and sales-focused",
-    icon: Megaphone,
-    color: "text-pink-600 dark:text-pink-400"
   },
   {
     id: "conversational",
     name: "Conversational",
     description: "Friendly, approachable, and casual tone",
-    icon: MessageSquare,
-    color: "text-amber-600 dark:text-amber-400"
   }
 ];
 
 const MODELS = [
   {
     id: "gemini",
-    name: "Google Gemini",
-    version: "Gemini 1.5 Pro",
-    description: "Highly analytical, excellent for research & reasoning",
+    name: "Gemini 1.5 Pro",
+    provider: "Google Gemini",
+    description: "Highly analytical, creative, and capable of complex reasoning tasks.",
     icon: Sparkles,
-    accentColor: "border-blue-500/50 bg-blue-50/50 text-blue-700 dark:bg-blue-950/20 dark:text-blue-400 dark:border-blue-800/60",
-    ringColor: "focus-within:ring-blue-500/20",
-    badgeColor: "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300"
   },
   {
     id: "openai",
-    name: "OpenAI GPT-4",
-    version: "GPT-4o",
-    description: "Fast, creative, and strong general capability",
+    name: "GPT-4o",
+    provider: "OpenAI",
+    description: "Fast, creative, and versatile general-purpose intelligence model.",
     icon: Zap,
-    accentColor: "border-emerald-500/50 bg-emerald-50/50 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-800/60",
-    ringColor: "focus-within:ring-emerald-500/20",
-    badgeColor: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300"
   },
   {
     id: "claude",
-    name: "Anthropic Claude",
-    version: "Claude 3.5 Sonnet",
-    description: "Nuanced, high-quality writing, very natural flow",
+    name: "Claude 3.5 Sonnet",
+    provider: "Anthropic Claude",
+    description: "Balanced, accurate, and comprehensive writing with natural flow.",
     icon: Brain,
-    accentColor: "border-orange-500/50 bg-orange-50/50 text-orange-700 dark:bg-orange-950/20 dark:text-orange-400 dark:border-orange-800/60",
-    ringColor: "focus-within:ring-orange-500/20",
-    badgeColor: "bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300"
   }
 ];
 
@@ -151,6 +130,12 @@ export default function ContentGeneratorForm({
   };
 
   const quickTopicSuggestions = [
+    "Write a newsletter about the benefit...",
+    "Explain edge computing in simple ter...",
+    "Create a social thread launching a n..."
+  ];
+
+  const fullTopicSuggestions = [
     "Write a newsletter about the benefits of serverless databases.",
     "Explain edge computing in simple terms for a non-technical manager.",
     "Create a social thread launching a new AI code assistant called Antigravity."
@@ -159,7 +144,7 @@ export default function ContentGeneratorForm({
   const activeErrorMessage = errorMessage || validationError;
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs dark:border-slate-800 dark:bg-slate-900/40 backdrop-blur-sm">
+    <div className="w-full">
       {activeErrorMessage && (
         <div className="mb-5">
           <ErrorBanner 
@@ -171,83 +156,188 @@ export default function ContentGeneratorForm({
           />
         </div>
       )}
-      <form onSubmit={handleSubmit} className="space-y-6">
+
+      <form onSubmit={handleSubmit}>
         
-        {/* Section 1: Topic Textarea */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <label htmlFor="topic" className="text-sm font-semibold text-slate-950 dark:text-slate-200">
-              Content Topic or Prompt
+        {/* ── FORM SECTION 1: Content Topic or Prompt ── */}
+        <div style={{ marginBottom: "32px", marginTop: "32px" }}>
+          {/* Label + Char counter header */}
+          <div 
+            className="flex items-center justify-between"
+            style={{ marginBottom: "8px" }}
+          >
+            <label
+              htmlFor="topic-input" 
+              style={{
+                fontSize: "13px",
+                fontWeight: 600,
+                color: "#94A3B8",
+                letterSpacing: "0.4px",
+                textTransform: "uppercase"
+                
+              }}
+            >
+              CONTENT TOPIC OR PROMPT
             </label>
-            <span className="text-2xs text-slate-400">
+
+            <span
+              style={{
+                fontSize: "12px",
+                fontWeight: 400,
+                color: "#64748B"
+              }}
+            >
               {topic.length} / 500 chars
             </span>
           </div>
-          <div className="relative">
-            <textarea
-              id="topic"
-              value={topic}
-              onChange={(e) => handleTextareaChange(e.target.value)}
-              placeholder="E.g., Write a comprehensive explanation of Cloud databases, including advantages, security compliance, and vendor comparison..."
-              disabled={isLoading}
-              rows={4}
-              className="w-full rounded-xl border border-slate-200 bg-slate-50/50 p-4 text-sm text-slate-800 placeholder-slate-400 outline-hidden transition-all focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-100 dark:focus:border-indigo-500 dark:focus:bg-slate-950"
-            />
-          </div>
-          
-          {/* Quick Suggestions for UI interaction */}
-          <div className="mt-1.5 flex flex-wrap gap-1.5">
-            {quickTopicSuggestions.map((suggestion, index) => (
+
+          {/* Textarea */}
+          <textarea
+            id="topic-input"
+            value={topic}
+            onChange={(e) => handleTextareaChange(e.target.value)}
+            placeholder="E.g., Write a comprehensive explanation of Cloud databases, including advantages, security compliance, and vendor comparison..."
+            disabled={isLoading}
+            className="field-input w-full resize-y text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+              minHeight: "140px",
+              padding: "14px",
+              background: "#1A202C",
+              border: "1px solid #2D3748",
+              borderRadius: "8px",
+              fontSize: "14px",
+              fontWeight: 400,
+              color: "#E2E8F0",
+              lineHeight: "1.6",
+              resize: "none"
+            }}
+          />
+
+          {/* Quick Prompt Suggestions */}
+          <div 
+            className="flex flex-wrap items-center gap-3"
+            style={{ marginTop: "12px", marginBottom: "28px" }}
+          >
+            {quickTopicSuggestions.map((suggestionText, idx) => (
               <button
-                key={index}
+                key={idx}
                 type="button"
-                onClick={() => handleTextareaChange(suggestion)}
-                className="rounded-lg bg-slate-50 border border-slate-200/80 px-2.5 py-1 text-2xs text-slate-500 transition-all hover:bg-slate-100 hover:text-slate-700 dark:bg-slate-900/40 dark:border-slate-800/80 dark:text-slate-400 dark:hover:bg-slate-800/80"
+                onClick={() => handleTextareaChange(fullTopicSuggestions[idx])}
+                disabled={isLoading}
+                className="transition-colors duration-150 cursor-pointer disabled:opacity-50"
+                style={{
+                  fontSize: "13px",
+                  fontWeight: 400,
+                  color: "#94A3B8",
+                  background: "transparent",
+                  border: "none",
+                  padding: 0
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.color = "#7C3AED"}
+                onMouseLeave={(e) => e.currentTarget.style.color = "#94A3B8"}
               >
-                {suggestion.slice(0, 36)}...
+                "{suggestionText}"
               </button>
             ))}
           </div>
         </div>
 
-        {/* Section 2: Custom Tone Dropdown */}
-        <div className="space-y-2">
-          <label className="text-sm font-semibold text-slate-950 dark:text-slate-200">
-            Content Tone
+        {/* ── FORM SECTION 2: Content Tone ── */}
+        <div style={{ marginBottom: "40px" }}>
+          <label
+            style={{
+              display: "block",
+              fontSize: "13px",
+              fontWeight: 600,
+              color: "#94A3B8",
+              letterSpacing: "0.4px",
+              textTransform: "uppercase",
+              marginBottom: "12px"
+            }}
+          >
+            CONTENT TONE
           </label>
+
           <div className="relative">
+            {/* Dropdown Select Trigger Button */}
             <button
               type="button"
               onClick={() => setIsToneDropdownOpen(!isToneDropdownOpen)}
               disabled={isLoading}
-              className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-left text-sm text-slate-800 shadow-3xs transition-all focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-100 dark:focus:border-indigo-500 dark:focus:bg-slate-950"
+              className="field-input flex w-full items-center justify-between transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                height: "44px",
+                padding: "12px 14px",
+                background: "#1A202C",
+                border: "1px solid #2D3748",
+                borderRadius: "8px",
+                fontSize: "14px",
+                fontWeight: 400,
+                color: "#E2E8F0",
+                cursor: "pointer"
+              }}
+              onMouseEnter={(e) => {
+                if (!isToneDropdownOpen) {
+                  e.currentTarget.style.background = "#252F3F";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isToneDropdownOpen) {
+                  e.currentTarget.style.background = "#1A202C";
+                }
+              }}
             >
-              <span className="flex items-center gap-2.5">
-                <selectedTone.icon className={`h-4.5 w-4.5 ${selectedTone.color}`} />
-                <span className="font-medium">{selectedTone.name}</span>
-              </span>
-              <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${isToneDropdownOpen ? "rotate-180" : ""}`} />
+              <span>{selectedTone.name}</span>
+              <ChevronDown 
+                className={`transition-transform duration-200 ${isToneDropdownOpen ? "rotate-180" : ""}`}
+                style={{ width: "18px", height: "18px", color: "#94A3B8" }} 
+              />
             </button>
 
+            {/* Dropdown Menu */}
             {isToneDropdownOpen && (
-              <div className="absolute z-20 mt-1.5 w-full rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl dark:border-slate-800 dark:bg-slate-950">
+              <div
+                className="absolute z-20 mt-1 w-full rounded-lg border shadow-xl animate-fade-in"
+                style={{
+                  background: "#1A202C",
+                  border: "1px solid #2D3748",
+                  borderRadius: "8px",
+                  padding: "4px",
+                }}
+              >
                 {TONES.map((tone) => (
                   <button
                     key={tone.id}
                     type="button"
                     onClick={() => selectTone(tone)}
-                    className="flex w-full items-start gap-3 rounded-lg px-3 py-2.5 text-left text-xs transition-all hover:bg-slate-50 dark:hover:bg-slate-900/50"
+                    className="flex w-full items-center justify-between text-left transition-colors duration-150"
+                    style={{
+                      padding: "10px 14px",
+                      borderRadius: "6px",
+                      fontSize: "14px",
+                      color: selectedTone.id === tone.id ? "#FFFFFF" : "#CBD5E1",
+                      background: selectedTone.id === tone.id ? "rgba(124,58,237,0.15)" : "transparent"
+                    }}
+                    onMouseEnter={(e) => {
+                      if (selectedTone.id !== tone.id) {
+                        e.currentTarget.style.background = "#252F3F";
+                        e.currentTarget.style.color = "#FFFFFF";
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (selectedTone.id !== tone.id) {
+                        e.currentTarget.style.background = "transparent";
+                        e.currentTarget.style.color = "#CBD5E1";
+                      }
+                    }}
                   >
-                    <tone.icon className={`h-4.5 w-4.5 mt-0.5 shrink-0 ${tone.color}`} />
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <span className="font-semibold text-slate-900 dark:text-white">{tone.name}</span>
-                        {selectedTone.id === tone.id && (
-                          <Check className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-                        )}
-                      </div>
-                      <p className="text-slate-400 dark:text-slate-500 mt-0.5">{tone.description}</p>
+                    <div>
+                      <div className="font-medium">{tone.name}</div>
+                      <div style={{ fontSize: "12px", color: "#94A3B8", marginTop: "2px" }}>{tone.description}</div>
                     </div>
+                    {selectedTone.id === tone.id && (
+                      <Check className="h-4 w-4" style={{ color: "#7C3AED" }} />
+                    )}
                   </button>
                 ))}
               </div>
@@ -255,76 +345,129 @@ export default function ContentGeneratorForm({
           </div>
         </div>
 
-        {/* Section 3: AI Model Cards */}
-        <div className="space-y-2">
-          <label className="text-sm font-semibold text-slate-950 dark:text-slate-200">
-            Select AI Model
+        {/* ── FORM SECTION 3: Select AI Model ── */}
+        <div style={{ marginBottom: "40px" }}>
+          <label
+            style={{
+              display: "block",
+              fontSize: "13px",
+              fontWeight: 600,
+              color: "#94A3B8",
+              letterSpacing: "0.4px",
+              textTransform: "uppercase",
+              marginBottom: "16px"
+            }}
+          >
+            SELECT AI MODEL
           </label>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+
+          {/* Model Cards 3-Column Grid */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             {MODELS.map((model) => {
               const isSelected = selectedModel.id === model.id;
+              const ModelIcon = model.icon;
               return (
                 <div
                   key={model.id}
                   onClick={() => !isLoading && setSelectedModel(model)}
-                  className={`group relative flex flex-col justify-between rounded-xl border p-4 shadow-3xs transition-all duration-200 cursor-pointer hover:border-slate-300 dark:hover:border-slate-700
-                    ${isSelected 
-                      ? model.accentColor + " border-2 border-solid ring-3 ring-indigo-500/5 dark:ring-indigo-400/5 scale-[1.02]" 
-                      : "border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950/40"
-                    }
-                    ${isLoading ? "opacity-60 cursor-not-allowed" : ""}
-                  `}
+                  className={`model-card relative flex flex-col justify-between rounded-lg transition-all duration-200 cursor-pointer ${
+                    isLoading ? "model-card--disabled opacity-60 cursor-not-allowed" : ""
+                  } ${isSelected ? "model-card--selected" : ""}`}
+                  style={{
+                    minHeight: "150px",
+                    padding: "16px",
+                    background: isSelected ? "rgba(124, 58, 237, 0.05)" : "#1A202C",
+                    border: isSelected ? "2px solid #7C3AED" : "2px solid #2D3748",
+                    borderRadius: "8px",
+                    boxShadow: isSelected ? "0 0 0 3px rgba(124, 58, 237, 0.1)" : "none"
+                  }}
                 >
-                  <div className="flex flex-col gap-1">
+                  <div>
+                    {/* Icon Top-Left */}
                     <div className="flex items-center justify-between">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-50 dark:bg-slate-900/80 border border-slate-200/50 dark:border-slate-800/40">
-                        <model.icon className="h-4 w-4" />
-                      </div>
-                      <span className={`rounded-md px-1.5 py-0.5 text-3xs font-semibold ${model.badgeColor}`}>
-                        {model.version}
-                      </span>
+                      <ModelIcon style={{ width: "24px", height: "24px", color: "#7C3AED" }} />
+                      {isSelected && (
+                        <div 
+                          className="flex items-center justify-center rounded-full"
+                          style={{ width: "16px", height: "16px", background: "#7C3AED" }}
+                        >
+                          <Check className="h-3 w-3 text-white" />
+                        </div>
+                      )}
                     </div>
-                    
-                    <h4 className="mt-3 text-xs font-bold text-slate-900 dark:text-white">
+
+                    {/* Model Name */}
+                    <h4
+                      style={{
+                        fontSize: "16px",
+                        fontWeight: 700,
+                        color: "#FFFFFF",
+                        marginTop: "12px"
+                      }}
+                    >
                       {model.name}
                     </h4>
-                    <p className="text-3xs text-slate-400 dark:text-slate-500 mt-1 leading-relaxed">
-                      {model.description}
+
+                    {/* Provider Name */}
+                    <p
+                      style={{
+                        fontSize: "12px",
+                        fontWeight: 400,
+                        color: "#94A3B8",
+                        marginTop: "4px"
+                      }}
+                    >
+                      {model.provider}
                     </p>
                   </div>
 
-                  {/* Active Radio Dot */}
-                  <div className="absolute bottom-3 right-3">
-                    <div className={`flex h-4 w-4 items-center justify-center rounded-full border transition-all
-                      ${isSelected 
-                        ? "border-indigo-600 bg-indigo-600 text-white dark:border-indigo-500 dark:bg-indigo-500" 
-                        : "border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-950"
-                      }
-                    `}>
-                      {isSelected && <Check className="h-2.5 w-2.5" />}
-                    </div>
-                  </div>
+                  {/* Description */}
+                  <p
+                    className="line-clamp-2"
+                    style={{
+                      fontSize: "12px",
+                      fontWeight: 400,
+                      color: "#CBD5E1",
+                      lineHeight: 1.4,
+                      marginTop: "12px"
+                    }}
+                  >
+                    {model.description}
+                  </p>
                 </div>
               );
             })}
           </div>
         </div>
 
-        {/* Section 4: Action Button */}
-        <div className="pt-2">
+        {/* ── ACTION BUTTON: Generate Content ── */}
+        <div style={{ marginTop: "40px" }}>
           <button
             type="submit"
             disabled={isLoading || !topic.trim()}
-            className="group relative flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 via-violet-600 to-pink-500 py-3.5 text-sm font-semibold text-white shadow-lg shadow-indigo-600/10 transition-all hover:scale-[1.01] hover:shadow-indigo-600/20 active:scale-99 disabled:scale-100 disabled:cursor-not-allowed disabled:from-slate-200 disabled:to-slate-300 disabled:text-slate-400 disabled:shadow-none dark:disabled:from-slate-800 dark:disabled:to-slate-800/80 dark:disabled:text-slate-500"
+            className="btn-primary flex items-center justify-center gap-2 rounded-lg font-semibold text-white shadow-md transition-all duration-200"
+            style={{
+              height: "48px",
+              padding: "0 32px",
+              maxWidth: "280px",
+              width: "100%",
+              background: isLoading || !topic.trim() ? "#4B5563" : "#7C3AED",
+              fontSize: "15px",
+              fontWeight: 600,
+              borderRadius: "8px",
+              border: "none",
+              cursor: isLoading || !topic.trim() ? "not-allowed" : "pointer",
+              boxShadow: isLoading || !topic.trim() ? "none" : "0 2px 8px rgba(124, 58, 237, 0.25)"
+            }}
           >
             {isLoading ? (
               <>
-                <Loader2 className="h-4.5 w-4.5 animate-spin" />
-                <span>Running generation pipeline...</span>
+                <Loader2 className="h-4 w-4 spinner" />
+                <span>Generating...</span>
               </>
             ) : (
               <>
-                <Sparkles className="h-4.5 w-4.5 animate-pulse" />
+                <Sparkles className="h-4 w-4" />
                 <span>Generate Content</span>
               </>
             )}
